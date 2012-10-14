@@ -181,9 +181,10 @@ output generated during the expression's evaluation.
 
 @interaction[#:eval the-eval
 (define-syntax-rule (capture-output e)
-  (parameterize ((current-output-port (open-output-string)))
-    e
-    (get-output-string (current-output-port))))
+  (let ([out (open-output-string)])
+    (parameterize ((current-output-port out))
+      e
+      (get-output-string out))))
 ]
 
 @interaction[#:eval the-eval
@@ -191,11 +192,30 @@ output generated during the expression's evaluation.
 (capture-output (printf "hello world!"))
 ]
 
+The only reason @racket[capture-output] needs to be a macro at all is
+that it needs to delay the evaluation of its argument until it can
+place it in the proper context. Another way to implement
+@racket[capture-output] is for the macro itself to only delay the
+evaluation of the expression and rely on a function that implements
+the dynamic behavior.
 
+@interaction[#:eval the-eval
+(define-syntax-rule (capture-output e)
+  (capture-output* (lambda () e)))
 
+(code:comment "capture-output* : (-> Any) -> String")
+(define (capture-output* thunk)
+  (let ([out (open-output-string)])
+    (parameterize ((current-output-port out))
+      (thunk)
+      (get-output-string out))))
+]
 
+The benefit of factoring out the parameterization is twofold: it
+minimizes the expanded code, and allows the macro-writer to
+individually test the function @racket[capture-output*].
 
-
+@section{Ellipses}
 
 If we have multiple expressions and want the output of all of them, we
 have a few options. We could use @racket[capture-output] on each and
@@ -205,29 +225,61 @@ expression using @racket[begin]. But it would be convenient if our
 evaluate each in order, and return the output of all of the
 expressions. 
 
-The macro system we are using gives us a convenient way of a sequence
-of arbitrarily many expressions.  We indicate that a macro accepts an
-arbitrary number of arguments with a @racket[...] in the pattern after
-the pattern variable.  Then, in the template, we use @racket[...]
-after the code that contains the pattern variable---in this case, just
-the pattern variable itself.
+The macro system we are using gives us a convenient way to represent a
+sequence of arbitrarily many expressions.  We indicate that a macro
+accepts an arbitrary number of arguments with a @racket[...] in the
+pattern after the pattern variable.  Then, in the template, we use
+@racket[...]  after the code that contains the pattern variable---in
+this case, just the pattern variable itself.
 
 @interaction[#:eval the-eval
 (define-syntax-rule (capture-output e ...)
-  (parameterize ((current-output-port (open-output-string)))
-    e ...
-    (get-output-string (current-output-port))))
+  (capture-output* (lambda () e ...)))
 (capture-output
   (displayln "I am the eggman")
   (displayln "They are the eggmen")
   (displayln "I am the walrus"))
 ]
 
+Unfortunately, this implementation breaks when @racket[capture-output]
+is called with no arguments.
 
+@interaction[#:eval the-eval
+(capture-output)
+]
+
+When @racket[capture-output] is called with no arguments, it produces
+a @racket[lambda] with an empty body, which is illegal.  One way to
+fix this is to insert a final expression within the @racket[lambda]:
+
+@interaction[#:eval the-eval
 (define-syntax-rule (capture-output e ...)
   (capture-output* (lambda () e ... (void))))
+(capture-output)
+]
 
-(define (capture-output* thunk)
-  (parameterize ((current-output-port (open-output-string)))
-    (thunk)
-    (get-output-string (current-output-port))))
+Alternatively, the macro-writer might require @racket[capture-output]
+be called with at least one argument. Then, the
+@racket[(capture-output)] call will give a more meaningful error
+message, as seen below.
+
+@interaction[#:eval the-eval
+(define-syntax-rule (capture-output e e* ...)
+  (capture-output* (lambda () e e* ...)))
+(capture-output)
+]
+
+Yet another option is to wrap each expression individually and pass a
+list of functions to the auxiliary function:
+
+@interaction[#:eval the-eval
+(define-syntax-rule (capture-output e ...)
+  (capture-output* (list (lambda () e) ...)))
+
+(define (capture-output* thunks)
+  (let ([out (open-output-string)])
+    (parameterize ((current-output-port out))
+      (for ([thunk (in-list thunks)]) (thunk))
+      (get-output-string out))))
+]
+
