@@ -283,3 +283,4 @@ list of functions to the auxiliary function:
       (get-output-string out))))
 ]
 
+@(close-eval the-eval)
