@@ -198,10 +198,58 @@ a binder, nor is it captured by bindings in the environment where the
 macro is used, if the identifier is used as a reference.}
 
 
-@section[#:tag "basic-binding-forms"]{Changing an Expression's Static Context}
+@section[#:tag "basic-binding-forms"]{Binding Forms}
 
+One of the most powerful and unique capabilities of macros is the
+ability to create new binding forms---macros that evaluate expressions
+in an environment extended with additional bindings.
 
+A binding form accepts identifiers to bind, in addition to
+expressions, as arguments. (Hygiene prevents only identifiers present
+as literals in the macro template from binding references in macro
+arguments---binders that come from macro arguments do bind references
+in other macro arguments.)
 
+For example, consider the @racket[andlet1] macro, which takes an
+identifier (binder) and two expressions. The first expression is
+evaluated in the environment of the macro use, without extensions. If
+it produces a true value, the second is evaluated in that environment
+extended with the identifier bound to the value of the first
+expression. In other words, the scope of the identifier is the second
+expression.
+
+@racketblock[
+(define-syntax-rule (andlet1 x e1 e2)
+  (let ([x e1])
+    (if x e2 #f)))
+]
+
+By inspecting the macro template, we can see that @racket[e2] is in
+the scope of the @racket[let]-binding of @racket[x], and @racket[e1]
+is not.
+
+@exercise{Write a macro @racket[iflet] that takes an identifier and
+three expressions. If the first expression (the condition) evaluates
+to a true value, that value is bound to the identifier and the second
+expression (the ``then branch'') is evaluated in its scope; otherwise,
+the third expression is evaluated @emph{outside the scope of the
+identifier}.
+
+@racketblock[
+(define alist '((1 . apple) (2 . pear)))
+(equal? (iflet x (assoc 1 alist) (cdr x) 'none) 'apple)
+(equal? (let ([x 'plum]) (iflet x (assoc 3 alist) (cdr x) x)) 'plum)
+]
+
+@;{
+;; one solution:
+(define-syntax-rule (iflet x e1 e2 e3)
+  (let ([tmp e1])
+    (if tmp
+        (let ([x tmp]) e2)
+        e3)))
+}
+}
 
 
 @section[#:tag "basic-dynamic"]{Changing an Expression's Dynamic Context}
@@ -210,13 +258,14 @@ macro is used, if the identifier is used as a reference.}
 
 So far, we've seen a few things that a macro can do with an expression
 argument. It can use its value (as in @racket[assert]); it turn it
-into a datum using @racket[quote]; and it can decide whether or not to
+into a datum using @racket[quote]; it can extend the environment the
+expression is evaluated in; and it can decide whether or not to
 evaluate it (as in the short-circuiting @racket[or2]).
 
-Another thing a macro can do to an expression is affect the
-@emph{dynamic context} it is evaluated in. For now, we'll use
-@tech/guide{parameters} as the primary example of dynamic context, but
-others include threads, continuation marks, and @racket[dynamic-wind].
+Another thing a macro can do is affect the @emph{dynamic context} an
+expression is evaluated in. For now, we'll use @tech/guide{parameters}
+as the primary example of dynamic context, but others include threads,
+continuation marks, and @racket[dynamic-wind].
 
 For example, consider a macro that evaluates its argument expression,
 throws away the value, and returns a string representing all of the
@@ -274,7 +323,7 @@ The benefit of factoring out the parameterization is twofold: it
 minimizes the size of the expanded code, and it allows you to test the
 helper function @racket[capture-output-fun].
 
-@lession{Keep the code introduced by a macro to a minimum. Rely on
+@lesson{Keep the code introduced by a macro to a minimum. Rely on
 helper functions to implement complex dynamic behavior.}
 
 
@@ -346,4 +395,14 @@ list of functions to the auxiliary function:
       (get-output-string out))))
 ]
 
+
+
+
+
+@; ============================================================
+
+
 @(close-eval the-eval)
+
+
+

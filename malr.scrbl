@@ -41,6 +41,9 @@ etc. Modules and languages.
 Syntax ergonomics, eg positional forms vs keyords vs identifier-tagged
 subforms.
 
+Ergonomics/conventions: Eval subexprs in original order. Do error
+checking of arguments in order, when possible.
+
 Don't use a macro when a function would suffice.
 
 Not every macro needs to be written.
