@@ -9,7 +9,9 @@
          scribble/core)
 (provide schemekw
          schemevar
-         declare-keyword)
+         declare-keyword
+         tech/reference
+         tech/guide)
 
 (define-syntax-rule (schemekw x) (schemekeywordfont (symbol->string 'x)))
 (define-syntax-rule (schemevar x) (schemevarfont (symbol->string 'x)))
@@ -22,3 +24,13 @@
                 ...))))
 
 (define-declare-X declare-keyword racketkeywordfont)
+
+;; ----
+
+(define reference-doc '(lib "scribblings/reference/reference.scrbl"))
+(define guide-doc '(lib "scribblings/guide/guide.scrbl"))
+
+(define (tech/reference #:key [key #f] . pre-content)
+  (apply tech #:key key #:doc reference-doc pre-content))
+(define (tech/guide #:key [key #f] . pre-content)
+  (apply tech #:key key #:doc guide-doc pre-content))

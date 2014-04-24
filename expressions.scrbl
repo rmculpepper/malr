@@ -6,6 +6,7 @@
 @(define the-eval (make-base-eval))
 
 @title{Expressions}
+@author["Ryan Culpepper" "Claire Alvis"]
 
 @section{Your First Macro}
 
@@ -172,7 +173,7 @@ evaluate it (as in the short-circuiting @racket[or2]).
 
 Another thing a macro can do to an expression is affect the
 @emph{dynamic context} it is evaluated in. For now, we'll use
-@tech{parameters} as the primary example of dynamic context, but
+@tech/guide{parameters} as the primary example of dynamic context, but
 others include threads, continuation marks, and @racket[dynamic-wind].
 
 For example, consider a macro that evaluates its argument expression,
