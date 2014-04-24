@@ -11,7 +11,9 @@
          schemevar
          declare-keyword
          tech/reference
-         tech/guide)
+         tech/guide
+         lesson
+         lesson*)
 
 (define-syntax-rule (schemekw x) (schemekeywordfont (symbol->string 'x)))
 (define-syntax-rule (schemevar x) (schemevarfont (symbol->string 'x)))
@@ -34,3 +36,11 @@
   (apply tech #:key key #:doc reference-doc pre-content))
 (define (tech/guide #:key [key #f] . pre-content)
   (apply tech #:key key #:doc guide-doc pre-content))
+
+;; ----
+
+(define (lesson . pre-content)
+  (para (apply italic (bold "Lesson: ") pre-content)))
+
+(define (lesson* . pre-content)
+  (nested #:style 'inset (apply italic (bold "Lesson: ") pre-content)))

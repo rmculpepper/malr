@@ -5,15 +5,16 @@
 
 @(define the-eval (make-base-eval))
 
-@title{Expressions}
+@title[#:tag "part-basic"]{Basic Macrology}
 @author["Ryan Culpepper" "Claire Alvis"]
 
-@section{Your First Macro}
+@section[#:tag "basic-first"]{Your First Macro}
 
 @(declare-keyword assert)
 
-Let's write a macro, @racket[assert], that takes an expression and evaluates it, raising
-an error if it does not evaluate to a true value.
+Let's write a macro, @racket[assert], that takes an expression and
+evaluates it, raising an error if it does not evaluate to a true
+value.
 
 We can use @racket[define-syntax-rule] to define very simple macros. A
 @racket[define-syntax-rule] definition consists of two parts: a
@@ -44,7 +45,7 @@ This use should behave as if we had written
 ]
 
 We can't (yet) actually make the macro create the exact string above,
-but we can instead make it produce code that will produce the right
+but we can instead make it generate code that will produce the right
 error at run time, with the help of the @racket[quote] form and
 @racket[error]'s built in formatting capabilities:
 
@@ -56,8 +57,9 @@ error at run time, with the help of the @racket[quote] form and
 So we write the macro as follows:
 
 @racketblock[
-(define-syntax-rule (assert e)
-  (unless e (error 'assert "assertion failed: ~s" (quote e))))
+(define-syntax-rule (assert expr)
+  (unless expr
+    (error 'assert "assertion failed: ~s" (quote expr))))
 ]
 
 When we use a macro like
@@ -69,9 +71,17 @@ When we use a macro like
 the macro expander substitutes the argument @racket[(>= (length ls)
 1)] for every occurrence of the pattern variable @racket[e] in the
 macro definition's template---including the occurrence within the
-@racket[quote] form.
+@racket[quote] form:
 
-FIXME: compile vs run time
+@racketblock[
+(unless (>= (length ls) 1)
+  (error 'assert "assertion failed: ~s"
+         '(>= (length ls) 1)))
+]
+
+@lesson{It's often simpler to produce an expression that does a
+computation at run time than to do the computation at compile time.}
+
 
 @section{Auxiliary Variables and Hygiene}
 
