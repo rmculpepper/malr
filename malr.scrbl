@@ -56,6 +56,8 @@ Error checking (with @racket[syntax-parse] and without).
 The structure of syntax. Think in terms of nonterminals, one function
 per nonterminal.
 
+#%expression
+
 Identifier comparisons: bound-id=?, free-id=? (and phases).
 
 Communication via syntax-local-value.

@@ -56,7 +56,7 @@ error at run time, with the help of the @racket[quote] form and
 
 So we write the macro as follows:
 
-@racketblock[
+@racketblock+eval[#:eval the-eval
 (define-syntax-rule (assert expr)
   (unless expr
     (error 'assert "assertion failed: ~s" (quote expr))))
@@ -111,11 +111,15 @@ or @racket[#f].  Here is a first attempt at defining of @racket[or2]:
 If @racket[e1] is a simple expression like @racket[#t], this
 definition will work just fine, but if is a complex expression that
 produces a true value, it will be evaluated twice. Worse, if it
-contains side-effects, the side-effects will be performed twice. So,
-we should evaluate @racket[e1] first and save the result in a
-temporary variable @racket[t]:
+contains side-effects, the side-effects will be performed twice. 
 
-@interaction[#:eval the-eval
+@lesson{A macro template should contain at most one reference to an
+expression argument.}
+
+So instead we should evaluate @racket[e1] first and save the result in
+a temporary variable @racket[x]:
+
+@racketblock+eval[#:eval the-eval
 (define-syntax-rule (or2 e1 e2)
   (let ([x e1])
     (if x x e2)))
@@ -218,7 +222,7 @@ extended with the identifier bound to the value of the first
 expression. In other words, the scope of the identifier is the second
 expression.
 
-@racketblock[
+@racketblock+eval[#:eval the-eval
 (define-syntax-rule (andlet1 x e1 e2)
   (let ([x e1])
     (if x e2 #f)))
@@ -271,7 +275,7 @@ For example, consider a macro that evaluates its argument expression,
 throws away the value, and returns a string representing all of the
 output generated during the expression's evaluation.
 
-@interaction[#:eval the-eval
+@racketblock+eval[#:eval the-eval
 (define-syntax-rule (capture-output expr)
   (let ([out (open-output-string)])
     (parameterize ((current-output-port out))
@@ -297,7 +301,7 @@ result. Use @racket[with-handlers].
 }
 
 
-@section[#:tag "basic-minimal"]{Minimizing Macros}
+@section[#:tag "basic-minimize"]{Minimizing Macros}
 
 Recall @racket[capture-output] from @secref["basic-dynamic"]. The only
 reason it needs to be a macro at all is to delay the evaluation of its
@@ -307,10 +311,9 @@ delay the evaluation of the expression---by turning it into a
 procedure---and rely on a function that implements the dynamic
 behavior.
 
-@interaction[#:eval the-eval
+@racketblock+eval[#:eval the-eval
 (define-syntax-rule (capture-output e)
   (capture-output-fun (lambda () e)))
-
 (code:comment "capture-output-fun : (-> Any) -> String")
 (define (capture-output-fun thunk)
   (let ([out (open-output-string)])
@@ -326,27 +329,42 @@ helper function @racket[capture-output-fun].
 @lesson{Keep the code introduced by a macro to a minimum. Rely on
 helper functions to implement complex dynamic behavior.}
 
+@exercise{Rewrite the @racket[handle] macro so that the dynamic
+behavior is implemented by a function.}
 
-@section{Ellipses}
+@exercise{Write a macro @racket[forever] that takes an expression and
+evaluates it repeatedly in a loop. Write a helper function to
+implement the dynamic behavior.}
 
-If we have multiple expressions and want the output of all of them, we
-have a few options. We could use @racket[capture-output] on each and
-append the results. Or we could join the expressions into a single
-expression using @racket[begin]. But it would be convenient if our
-@racket[capture-output] macro could accept multiple expressions,
-evaluate each in order, and return the output of all of the
-expressions. 
+@exercise{Rewrite the @racket[andlet1] macro so that the dynamic
+behavior is implemented by a function. What happens to the identifier
+argument? (Note: this macro is so simple that there is no benefit to
+creating a separate function to handle it. Do it anyway; it's an
+instructive example.)}
+
+
+@; ============================================================
+
+@section{Ellipsis Patterns and Templates}
+
+Let us continue with the @racket[capture-output] macro, and let us
+suppose that we want to extend it to take multiple expressions, which
+should be evaluated in order, and the output of all of them captured
+and combined.
 
 The macro system we are using gives us a convenient way to represent a
 sequence of arbitrarily many expressions.  We indicate that a macro
 accepts an arbitrary number of arguments with a @racket[...] in the
 pattern after the pattern variable.  Then, in the template, we use
-@racket[...]  after the code that contains the pattern variable---in
+@racket[...] after the code that contains the pattern variable---in
 this case, just the pattern variable itself.
 
-@interaction[#:eval the-eval
+@racketblock+eval[#:eval the-eval
 (define-syntax-rule (capture-output e ...)
-  (capture-output* (lambda () e ...)))
+  (capture-output-fun (lambda () e ...)))
+]
+
+@interaction[#:eval the-eval
 (capture-output
   (displayln "I am the eggman")
   (displayln "They are the eggmen")
@@ -364,9 +382,11 @@ When @racket[capture-output] is called with no arguments, it produces
 a @racket[lambda] with an empty body, which is illegal.  One way to
 fix this is to insert a final expression within the @racket[lambda]:
 
-@interaction[#:eval the-eval
+@racketblock+eval[#:eval the-eval
 (define-syntax-rule (capture-output e ...)
-  (capture-output* (lambda () e ... (void))))
+  (capture-output-fun (lambda () e ... (void))))
+]
+@interaction[#:eval the-eval
 (capture-output)
 ]
 
@@ -375,20 +395,22 @@ be called with at least one argument. Then, the
 @racket[(capture-output)] call will give a more meaningful error
 message, as seen below.
 
-@interaction[#:eval the-eval
+@racketblock+eval[#:eval the-eval
 (define-syntax-rule (capture-output e e* ...)
-  (capture-output* (lambda () e e* ...)))
+  (capture-output-fun (lambda () e e* ...)))
+]
+@interaction[#:eval the-eval
 (capture-output)
 ]
 
 Yet another option is to wrap each expression individually and pass a
 list of functions to the auxiliary function:
 
-@interaction[#:eval the-eval
+@racketblock[
 (define-syntax-rule (capture-output e ...)
-  (capture-output* (list (lambda () e) ...)))
+  (capture-output-fun (list (lambda () e) ...)))
 
-(define (capture-output* thunks)
+(define (capture-output-fun thunks)
   (let ([out (open-output-string)])
     (parameterize ((current-output-port out))
       (for ([thunk (in-list thunks)]) (thunk))
