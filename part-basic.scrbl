@@ -83,12 +83,12 @@ macro definition's template---including the occurrence within the
 computation at run time than to do the computation at compile time.}
 
 
-@section{Auxiliary Variables and Hygiene}
+@section[#:tag "basic-or2"]{Auxiliary Variables and Hygiene}
 
 @(declare-keyword or2)
 
-Now, we want a macro @racket[or2] that expects two expressions
-@racket[e1] and @racket[e2], and will return the first true expression
+Suppose we want a macro @racket[or2] that expects two expressions
+@racket[e1] and @racket[e2] and returns the first true expression
 or @racket[#f].  Here is a first attempt at defining of @racket[or2]:
 
 @racketblock[
@@ -97,15 +97,16 @@ or @racket[#f].  Here is a first attempt at defining of @racket[or2]:
 ]
 
 If @racket[e1] is a simple expression like @racket[#t], this
-definition will work just fine, but if is a complex expression,
-possibly containing effects, that work will be duplicated.  So, we
-should evaluate @racket[e1] first and save the result in a temporary
-variable @racket[t]:
+definition will work just fine, but if is a complex expression that
+produces a true value, it will be evaluated twice. Worse, if it
+contains side-effects, the side-effects will be performed twice. So,
+we should evaluate @racket[e1] first and save the result in a
+temporary variable @racket[t]:
 
 @interaction[#:eval the-eval
 (define-syntax-rule (or2 e1 e2)
-  (let ((t e1))
-    (if t t e2)))
+  (let ([x e1])
+    (if x x e2)))
 ]
 
 If we try this macro, it seems to work as we expect:
@@ -120,59 +121,72 @@ If we try this macro, it seems to work as we expect:
 Notice that in the final example, @racket[or2] returns @racket[#t]
 without evaluating @racket[(/ 1 0)], which would have raised an
 error. In other words, @racket[or2] ``short-circuits'' the evaluation
-of its arguments.
+of its second argument.
 
-One cause for concern is the use of @racket[t] as an auxiliary
-variable. Might this use of @racket[t] interfere with a use of
-@racket[t] in the expressions we give to @racket[or2]?
+One cause for concern is the use of @racket[x] as an auxiliary
+variable. Might this use of @racket[x] interfere with a use of
+@racket[x] in the expressions we give to @racket[or2]?
 
 For example, consider this use of the macro:
 
 @racketblock[
-(let ((t 5))
-  (or2 (even? t) (odd? t)))
+(let ([x 5])
+  (or2 (even? x) (odd? x)))
 ]
 
 If we do this expansion by hand, we would expect to get the following:
 
 @interaction[#:eval the-eval
-(let ((t 5))
-  (let ((t (even? t)))
-    (if t t (odd? t))))
+(let ([x 5])
+  (let ([x (even? x)])
+    (if x x (odd? x))))
 ]
 
 But when we use the macro, it---surprisingly---behaves exactly as we
 would have wanted! 
 
 @interaction[#:eval the-eval
-(let ((t 5))
-  (or2 (even? t) (odd? t)))
+(let ([x 5])
+  (or2 (even? x) (odd? x)))
 ]
 
-That is, the occurrence of @racket[t] in @racket[(odd? t)] refers to
-the binding of @racket[t] around the @emph{use} of the macro, not the
+That is, the occurrence of @racket[x] in @racket[(odd? x)] refers to
+the binding of @racket[x] around the @emph{use} of the macro, not the
 binding introduced by its @emph{expansion}.
 
 This property of Racket macros is called @emph{hygiene}. Instead of
 the ``naive'' expansion we wrote above, the Racket macro expander
-produces something like the following:
+actually produces something like the following:
 
 @racketblock[
-(let ((t 5))
-  (let ((t_1 (even? t)))
-    (if t_1 t_1 (odd? t))))
+(let ([x 5])
+  (let ([x_1 (even? x)])
+    (if x_1 x_1 (odd? x))))
 ]
 
 The macro expander distinguishes identifiers introduced by a macro and
 keeps them ``separate'' from identifiers given to the macro in its
 arguments. If an introduced identifier is used in a binding position,
 it does @emph{not} capture identifiers of the same name in the macro's
-arguments. We will discuss the actual mechanism the macro expander
-uses to do this later in the guide, but for now, @emph{we can use
-auxiliary variable bindings in macro templates without fear!}
+arguments.
+
+Similarly, references introduced by the macro are not captured by
+bindings of the same name in the context of the macro's use. In the
+example above, the references to the @racket[let] and @racket[if]
+syntactic forms refer to the @racket[let] and @racket[if] bindings in
+scope at the macro definition site, regardless of what those names
+mean at the macro use site.
+
+We will discuss the actual mechanism the macro expander uses to
+enforce hygiene later in the guide.
+
+@lesson{An identifier that is part of a macro template neither
+captures references in a macro argument, if the identifier is used as
+a binder, nor is it captured by bindings in the environment where the
+macro is used, if the identifier is used as a reference.}
 
 
-@section{Changing an Expression's Dynamic Context}
+@section[#:tag "basic-dynctx"]{Changing an Expression's Dynamic Context}
 
 @(declare-keyword capture-output)
 
