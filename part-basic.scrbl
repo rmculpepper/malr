@@ -82,6 +82,18 @@ macro definition's template---including the occurrence within the
 @lesson{It's often simpler to produce an expression that does a
 computation at run time than to do the computation at compile time.}
 
+@exercise{Write a macro @racket[noisy-v1] that takes an expression
+@racket[_expr] and prints @racketvalfont{"evaluating
+@racket[_expr]\n"} before evaluating the expression. The result of the
+macro should be the result of the expression. (Hint: use
+@racket[begin].)}
+
+@exercise{Write a macro @racket[noisy-v2] that takes an expression
+@racket[_expr] and prints @racketvalfont{"evaluating @racket[_expr]
+..."} before evaluating the expression and @racketvalfont{"done\n"}
+afterwards. The result of the macro should be the result of the
+expression. (Hint: use @racket[begin0].)}
+
 
 @section[#:tag "basic-or2"]{Auxiliary Variables and Hygiene}
 
@@ -186,7 +198,13 @@ a binder, nor is it captured by bindings in the environment where the
 macro is used, if the identifier is used as a reference.}
 
 
-@section[#:tag "basic-dynctx"]{Changing an Expression's Dynamic Context}
+@section[#:tag "basic-binding-forms"]{Changing an Expression's Static Context}
+
+
+
+
+
+@section[#:tag "basic-dynamic"]{Changing an Expression's Dynamic Context}
 
 @(declare-keyword capture-output)
 
@@ -205,10 +223,10 @@ throws away the value, and returns a string representing all of the
 output generated during the expression's evaluation.
 
 @interaction[#:eval the-eval
-(define-syntax-rule (capture-output e)
+(define-syntax-rule (capture-output expr)
   (let ([out (open-output-string)])
     (parameterize ((current-output-port out))
-      e
+      expr
       (get-output-string out))))
 ]
 
@@ -217,19 +235,35 @@ output generated during the expression's evaluation.
 (capture-output (printf "hello world!"))
 ]
 
-The only reason @racket[capture-output] needs to be a macro at all is
-that it needs to delay the evaluation of its argument until it can
-place it in the proper context. Another way to implement
-@racket[capture-output] is for the macro itself to only delay the
-evaluation of the expression and rely on a function that implements
-the dynamic behavior.
+@exercise{Write a macro @racket[handle] that takes two expressions. It
+should evaluate the first expression, and if it returns a value, the
+result of the macro use is that value. If the first expression raises
+an exception, it evaluates the second expression and returns its
+result. Use @racket[with-handlers].
+
+@racketblock[
+(equal? (handle 5 6) 5)
+(equal? (handle (/ 1 0) 'whoops) 'whoops)
+]
+}
+
+
+@section[#:tag "basic-minimal"]{Minimizing Macros}
+
+Recall @racket[capture-output] from @secref["basic-dynamic"]. The only
+reason it needs to be a macro at all is to delay the evaluation of its
+argument until it can place it in the proper context. Another way to
+implement @racket[capture-output] is for the macro itself to only
+delay the evaluation of the expression---by turning it into a
+procedure---and rely on a function that implements the dynamic
+behavior.
 
 @interaction[#:eval the-eval
 (define-syntax-rule (capture-output e)
-  (capture-output* (lambda () e)))
+  (capture-output-fun (lambda () e)))
 
-(code:comment "capture-output* : (-> Any) -> String")
-(define (capture-output* thunk)
+(code:comment "capture-output-fun : (-> Any) -> String")
+(define (capture-output-fun thunk)
   (let ([out (open-output-string)])
     (parameterize ((current-output-port out))
       (thunk)
@@ -237,8 +271,12 @@ the dynamic behavior.
 ]
 
 The benefit of factoring out the parameterization is twofold: it
-minimizes the expanded code, and allows the macro-writer to
-individually test the function @racket[capture-output*].
+minimizes the size of the expanded code, and it allows you to test the
+helper function @racket[capture-output-fun].
+
+@lession{Keep the code introduced by a macro to a minimum. Rely on
+helper functions to implement complex dynamic behavior.}
+
 
 @section{Ellipses}
 

@@ -13,7 +13,8 @@
          tech/reference
          tech/guide
          lesson
-         lesson*)
+         lesson*
+         exercise)
 
 (define-syntax-rule (schemekw x) (schemekeywordfont (symbol->string 'x)))
 (define-syntax-rule (schemevar x) (schemevarfont (symbol->string 'x)))
@@ -40,7 +41,15 @@
 ;; ----
 
 (define (lesson . pre-content)
-  (para (apply italic (bold "Lesson: ") pre-content)))
+  (nested (apply italic (bold "Lesson: ") pre-content)))
 
 (define (lesson* . pre-content)
   (nested #:style 'inset (apply italic (bold "Lesson: ") pre-content)))
+
+;; ----
+
+(define exercise-counter 1)
+
+(define (exercise . pre-content)
+  (begin0 (apply nested (bold (format "Exercise ~s: " exercise-counter)) pre-content)
+    (set! exercise-counter (add1 exercise-counter))))
