@@ -345,7 +345,7 @@ instructive example.)}
 
 @; ============================================================
 
-@section{Ellipsis Patterns and Templates}
+@section[#:tag "basic-ellipses"]{Ellipsis Patterns and Templates}
 
 Let us continue with the @racket[capture-output] macro, and let us
 suppose that we want to extend it to take multiple expressions, which
@@ -418,10 +418,29 @@ list of functions to the auxiliary function:
 ]
 
 
-
-
-
 @; ============================================================
+
+@;{
+recursive macros
+ - cond
+
+recursive macros w/ multiple variants
+ - cond w/ =>, else
+ - also intros identifier-subforms
+ - also, syntax grammars ???
+
+expansion contexts
+ - forward ref to "we'll show you later how to create more contexts"
+ - discovery process
+
+recap and misc:
+ - Macros are rewrite rules, outward in, discovery process.
+ - new: Don't use a macro when a function would suffice.
+ - new: Not every macro needs to be written.
+
+}
+
+
 
 
 @(close-eval the-eval)
