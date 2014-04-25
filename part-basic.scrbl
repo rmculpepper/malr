@@ -86,13 +86,28 @@ computation at run time than to do the computation at compile time.}
 @racket[_expr] and prints @racketvalfont{"evaluating
 @racket[_expr]\n"} before evaluating the expression. The result of the
 macro should be the result of the expression. (Hint: use
-@racket[begin].)}
+@racket[begin].)
+
+@;{
+;; Solution:
+(define-syntax-rule (noisy-v1 expr)
+  (begin (printf "evaluating ~s\n" 'expr) expr))
+}
+}
 
 @exercise{Write a macro @racket[noisy-v2] that takes an expression
 @racket[_expr] and prints @racketvalfont{"evaluating @racket[_expr]
 ..."} before evaluating the expression and @racketvalfont{"done\n"}
 afterwards. The result of the macro should be the result of the
-expression. (Hint: use @racket[begin0].)}
+expression. (Hint: use @racket[begin0].)
+
+@;{
+;; Solution:
+(define-syntax-rule (noisy-v2 expr)
+  (begin (printf "evaluating ~s..." 'expr) 
+         (begin0 expr (printf "done\n"))))
+}
+}
 
 
 @section[#:tag "basic-or2"]{Auxiliary Variables and Hygiene}
@@ -159,7 +174,7 @@ If we do this expansion by hand, we would expect to get the following:
 ]
 
 But when we use the macro, it---surprisingly---behaves exactly as we
-would have wanted! 
+wanted!
 
 @interaction[#:eval the-eval
 (let ([x 5])
@@ -191,7 +206,9 @@ bindings of the same name in the context of the macro's use. In the
 example above, the references to the @racket[let] and @racket[if]
 syntactic forms refer to the @racket[let] and @racket[if] bindings in
 scope at the macro definition site, regardless of what those names
-mean at the macro use site.
+mean at the macro use site. You might not have thought of @racket[let]
+and @racket[if] as names that could be shadowed, but Racket uses the
+same binding rules for both variables and names of syntactic forms.
 
 We will discuss the actual mechanism the macro expander uses to
 enforce hygiene later in the guide.
@@ -246,7 +263,7 @@ identifier}.
 ]
 
 @;{
-;; one solution:
+;; Solution:
 (define-syntax-rule (iflet x e1 e2 e3)
   (let ([tmp e1])
     (if tmp
@@ -298,6 +315,12 @@ result. Use @racket[with-handlers].
 (equal? (handle 5 6) 5)
 (equal? (handle (/ 1 0) 'whoops) 'whoops)
 ]
+
+@;{
+;; Solution:
+(define-syntax-rule (handle e1 e2)
+  (with-handlers ([exn:fail? (lambda (_) e2)]) e1))
+}
 }
 
 
@@ -330,17 +353,47 @@ helper function @racket[capture-output-fun].
 helper functions to implement complex dynamic behavior.}
 
 @exercise{Rewrite the @racket[handle] macro so that the dynamic
-behavior is implemented by a function.}
+behavior is implemented by a function.
+
+@;{
+;; Solution:
+(define-syntax-rule (handle e1 e2) 
+  (handle-fun (lambda () e1) (lambda () e2)))
+(define (handle-fun thunk1 thunk2)
+  (with-handlers ([exn:fail? (lambda (_) (thunk2))]) (thunk1)))
+}
+}
 
 @exercise{Write a macro @racket[forever] that takes an expression and
 evaluates it repeatedly in a loop. Write a helper function to
-implement the dynamic behavior.}
+implement the dynamic behavior.
+
+@;{
+;; Solution:
+(define-syntax-rule (forever e)
+  (forever-fun (lambda () e)))
+(define (forever-fun thunk)
+  (begin (thunk) (forever-fun thunk)))
+}
+}
 
 @exercise{Rewrite the @racket[andlet1] macro so that the dynamic
 behavior is implemented by a function. What happens to the identifier
 argument? (Note: this macro is so simple that there is no benefit to
 creating a separate function to handle it. Do it anyway; it's an
-instructive example.)}
+instructive example.)
+
+@;{
+;; Solution:
+(define-syntax-rule (andlet1 x e1 e2)
+  (andlet1-fun (lambda () e1) (lambda (x) e2)))
+(define (andlet1-fun thunk1 fun2)
+  (let ([tmp (thunk1)])
+    (if tmp
+        (fun2 tmp)
+        #f)))
+}
+}
 
 
 @; ============================================================
@@ -418,7 +471,20 @@ list of functions to the auxiliary function:
 ]
 
 @exercise{Write @racket[my-and] and @racket[my-or] macros that take
-arbitrary numbers of expressions.}
+arbitrary numbers of expressions.
+
+@;{
+;; Solution:
+(define-syntax-rule (my-or e ...)
+  (my-or-fun (list (lambda () e) ...)))
+(define (my-or-fun thunks)
+  (if (pair? thunks)
+      (or2 ((car thunks))
+           (my-or-fun (cdr thunks)))
+      #f))
+;; likewise for my-and
+}
+}
 
 
 @section[#:tag "basic-pattern-dots"]{Ellipses with Complex Patterns}
@@ -458,7 +524,27 @@ ellipses. Why not? Think about this before reading the next section.}
 @racket[(my-cond-v0 [_question-expr _answer-expr] ...)] and acts like
 Racket's @racket[cond] form. Hint: if the dynamic representation of an
 expression is a procedure, what is the dynamic representation of a
-@racket[my-cond-v0] clause?}
+@racket[my-cond-v0] clause?
+
+@;{
+;; Solution:
+(define-syntax-rule (my-cond-v0 [question-expr answer-expr] ...)
+  (my-cond-v0-fun
+   (list
+    (cons    ;; bleh, I know, dirty use of cons
+     (lambda () question-expr)
+     (lambda () answer-expr))
+    ...)))
+(define (my-cond-v0-fun clauses)
+  (if (pair? clauses)
+      (let ([question-thunk (car (car clauses))]
+            [answer-thunk (cdr (car clauses))])
+        (if (question-thunk)
+            (answer-thunk)
+            (my-cond-v0-fun (cdr clauses))))
+      (void)))
+}
+}
 
 @;{
 
