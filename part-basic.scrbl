@@ -417,6 +417,98 @@ list of functions to the auxiliary function:
       (get-output-string out))))
 ]
 
+@exercise{Write @racket[my-and] and @racket[my-or] macros that take
+arbitrary numbers of expressions.}
+
+
+@section[#:tag "basic-pattern-dots"]{Ellipses with Complex Patterns}
+
+Consider a simplified version of Racket's @racket[let] form with the
+following syntax:
+
+@defform[#:link-target? #f
+         #:literals (else)
+         (my-let ([id rhs-expr] ...) body-expr)]{}
+
+We can use ellipses after a complex pattern, not just after a simple
+pattern variable:
+
+@racketblock[
+(define-syntax-rule (my-let ([id rhs-expr] ...) body-expr)
+  ((lambda (id ...) body-expr) rhs-expr ...))
+]
+
+We can also implement @racket[my-letrec], which has the same syntax as
+@racket[my-let] but evaluates all of the right-hand side expressions
+in the scope of all of bound variables.
+
+@racketblock[
+(define-syntax-rule (my-letrec ([id rhs-expr] ...) body-expr)
+  (my-let ([id #f] ...)
+    (set! id rhs-expr) ...
+    body-expr))
+]
+
+Now consider a simplified version of Racket's @racket[cond] form with
+the following syntax:
+
+@defform[#:link-target? #f
+         (my-cond [question-expr answer-expr] ...)]{}
+
+
+
+@racketblock[
+(define-syntax-rule (my-cond [question-expr answer-expr] ...)
+  (my-cond-fun (list (lambda () question-expr) ...)
+               (list (lambda () answer-expr) ...)))
+]
+
+
+
+
+
+@section[#:tag "basic-rec"]{Recursive Macros}
+
+Let's think about how to write a simplified version of Racket's
+@racket[cond] form. Here's the syntax:
+
+@defform[#:link-target? #f
+         #:literals (else)
+         (mycond clause ...)
+         #:grammar ([clause [test-expr answer-expr]
+                            [else answer-expr]])]
+
+But there's an additional constraint: only the last clause of the
+@racket[mycond] expression can be an @racket[else] clause. A more
+precise specification of the syntax is the following:
+
+@defform[#:link-target? #f
+         #:literals (else)
+         (mycond clause ... maybe-final-clause)
+         #:grammar ([clause [test-expr answer-expr]]
+                    [maybe-final-clause (code:line)
+                                        [else answer-expr]])]
+
+Using only @racket[define-syntax-rule], even with ellipses, we can't
+distinguish the final clause. We need a more 
+
+(If not for the final clause, we 
+
+@racketblock[
+(syntax-rules (literal-id ...)
+  [pattern template] ...)
+]
+
+or, less elegantly:
+
+@defform[#:link-target? #f
+         #:literals (else)
+         (mycond . clauses)
+         #:grammar ([clauses ()
+                             ([else answer-expr])
+                             ([test-expr answer-expr] . clauses)])]
+
+
 
 @; ============================================================
 
