@@ -573,7 +573,7 @@ identifier.
 ]
 
 FIXME: some time before this, talk about writing down example of
-expansion
+expansion -- but don't fixate on the first way you think of
 
 
 
