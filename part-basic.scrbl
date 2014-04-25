@@ -428,10 +428,11 @@ following syntax:
 
 @defform[#:link-target? #f
          #:literals (else)
-         (my-let ([id rhs-expr] ...) body-expr)]{}
+         (my-let ([id rhs-expr] ...) body-expr)]{@~}
 
 We can use ellipses after a complex pattern, not just after a simple
-pattern variable:
+pattern variable, as long as the components of the pattern are treated
+uniformly in the template:
 
 @racketblock[
 (define-syntax-rule (my-let ([id rhs-expr] ...) body-expr)
@@ -449,64 +450,130 @@ in the scope of all of bound variables.
     body-expr))
 ]
 
+@exercise{Unlike @racket[let] and @racket[letrec], @racket[let*]
+cannot be implemented using @racket[define-syntax-rule] and
+ellipses. Why not?}
+
+@exercise{Write a macro @racket[my-cond-v0], which has the pattern
+@racket[(my-cond-v0 [_question-expr _answer-expr] ...)]. Hint: if the
+dynamic representation of an expression is a procedure, what is the
+dynamic representation of a @racket[my-cond-v0] clause?}
+
+@;{
+
 Now consider a simplified version of Racket's @racket[cond] form with
 the following syntax:
 
 @defform[#:link-target? #f
-         (my-cond [question-expr answer-expr] ...)]{}
+         (my-cond [question-expr answer-expr] ...)]{@~}
 
-
+We can implement this form by calling a function on dynamic
+representations of clauses. Each clause consists of two expressions;
+thus each dynamic clause representation logically consists of two
+thunks.
 
 @racketblock[
 (define-syntax-rule (my-cond [question-expr answer-expr] ...)
-  (my-cond-fun (list (lambda () question-expr) ...)
-               (list (lambda () answer-expr) ...)))
+  (my-cond-fun
+   (list (cons (lambda () question-expr)
+               (lambda () answer-expr))
+         ...)))
+(define (my-cond-fun dclauses)
+  (if (pair? dclauses)
+      (if ((caar dclauses))
+          ((cdar dclauses))
+          (my-cond-fun (cdr dclauses)))
+      (void)))
 ]
 
-
-
+}
 
 
 @section[#:tag "basic-rec"]{Recursive Macros}
 
-Let's think about how to write a simplified version of Racket's
-@racket[cond] form. Here's the syntax:
+Consider Racket's @racket[let*] form. We cannot implement such a macro
+using @racket[define-syntax-rule], because handling sequences of terms
+requires ellipses, and ellipses require that the components of the
+repeated pattern are handled uniformly in the template. The scope of
+each identifier bound by @racket[let*] includes the body as well as
+every following right-hand side expression. In other words, the scope
+of the bound variables is non-uniform; alternatively, the environment
+of the right-hand side expressions is non-uniform. So we cannot
+implement @racket[let*] with ellipses (uniform treatment) unless we
+already have a target form that implements that non-uniform binding
+structure. (If we are allowed to expand into @racket[let*], then of
+course implementing @racket[my-let*] using @racket[define-syntax-rule]
+is trivial.)
 
-@defform[#:link-target? #f
-         #:literals (else)
-         (mycond clause ...)
-         #:grammar ([clause [test-expr answer-expr]
-                            [else answer-expr]])]
-
-But there's an additional constraint: only the last clause of the
-@racket[mycond] expression can be an @racket[else] clause. A more
-precise specification of the syntax is the following:
-
-@defform[#:link-target? #f
-         #:literals (else)
-         (mycond clause ... maybe-final-clause)
-         #:grammar ([clause [test-expr answer-expr]]
-                    [maybe-final-clause (code:line)
-                                        [else answer-expr]])]
-
-Using only @racket[define-syntax-rule], even with ellipses, we can't
-distinguish the final clause. We need a more 
-
-(If not for the final clause, we 
+On the other hand, @racket[let*] has a very nice recursive
+structure. We could implement it if we were able to define recursive
+macros that could behave differently given different input
+patterns. Such a macro can be defined with @racket[syntax-rules]; the
+definition has the following form:
 
 @racketblock[
-(syntax-rules (literal-id ...)
-  [pattern template] ...)
+(define-syntax _macro-id
+  (syntax-rules (_literal-id ...)
+    [_pattern _template] ...))
 ]
 
-or, less elegantly:
+The macro's clauses are tried in order, and the macro is rewritten
+using the @racket[_template] that corresponds to the first
+@racket[_pattern] that matches the macro use. We do not need the
+@racket[_literal-id] list yet; for now it will be empty.
+
+Here is the definition of @racket[my-let*]:
+
+@racketblock[
+(define-syntax my-let*
+  (syntax-rules ()
+    [(my-let* () body-expr)
+     body-expr]
+    [(my-let* ([id rhs-expr] . more-bindings) body-expr)
+     (let ([id rhs-expr]) (my-let* more-bindings body-expr))]))
+]
+
+Inspect the macro definition and confirm that in each case, the scope
+of one of the bound identifiers consists of the following right-hand
+side expressions and the body expression.
+
+Now consider a simplified version of Racket's @racket[cond]
+form. Here's the syntax:
 
 @defform[#:link-target? #f
          #:literals (else)
-         (mycond . clauses)
-         #:grammar ([clauses ()
-                             ([else answer-expr])
-                             ([test-expr answer-expr] . clauses)])]
+         (mycond clause ... maybe-else-clause)
+         #:grammar ([clause [test-expr answer-expr]]
+                    [maybe-else-clause (code:line)
+                                       [else answer-expr]])]
+
+
+Note the two kinds of clauses: only the last clause of the
+@racket[mycond] expression can be an @racket[else] clause.  The empty
+line in the definition of the @svar[maybe-else-clause] nonterminal
+means that the term might be absent. So our recursive macro will have
+two base cases.
+
+We can recognize @racket[else] by including @racket[else] it in the
+macro's literals list; then uses of @racket[else] in a pattern are not
+pattern variables, but instead only match other occurrences of that
+identifier.
+
+@racketblock[
+(define-syntax my-cond
+  (syntax-rules (else)
+    [(my-cond)
+     (void)]
+    [(my-cond [else answer-expr])
+     answer-expr]
+    [(my-cond [question-expr answer-expr] . more-clauses)
+     (if question-expr
+         answer-expr
+         (my-cond . more-clauses))]))
+]
+
+FIXME: some time before this, talk about writing down example of
+expansion
 
 
 
