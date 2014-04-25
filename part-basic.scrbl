@@ -452,12 +452,13 @@ in the scope of all of bound variables.
 
 @exercise{Unlike @racket[let] and @racket[letrec], @racket[let*]
 cannot be implemented using @racket[define-syntax-rule] and
-ellipses. Why not?}
+ellipses. Why not? Think about this before reading the next section.}
 
 @exercise{Write a macro @racket[my-cond-v0], which has the pattern
-@racket[(my-cond-v0 [_question-expr _answer-expr] ...)]. Hint: if the
-dynamic representation of an expression is a procedure, what is the
-dynamic representation of a @racket[my-cond-v0] clause?}
+@racket[(my-cond-v0 [_question-expr _answer-expr] ...)] and acts like
+Racket's @racket[cond] form. Hint: if the dynamic representation of an
+expression is a procedure, what is the dynamic representation of a
+@racket[my-cond-v0] clause?}
 
 @;{
 
@@ -603,6 +604,3 @@ recap and misc:
 
 
 @(close-eval the-eval)
-
-
-
