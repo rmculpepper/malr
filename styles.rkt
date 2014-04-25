@@ -10,6 +10,7 @@
 (provide schemekw
          schemevar
          declare-keyword
+         ==>
          tech/reference
          tech/guide
          lesson
@@ -27,6 +28,9 @@
                 ...))))
 
 (define-declare-X declare-keyword racketkeywordfont)
+
+(define-syntax ==>
+  (make-element-id-transformer (lambda _ #'(elem "⇒"))))
 
 ;; ----
 

@@ -1,7 +1,7 @@
 #lang scribble/manual
 @(require scribble/eval
           "styles.rkt"
-          (for-label racket/base))
+          (for-label racket/base racket/match))
 
 @(define the-eval (make-base-eval))
 
@@ -13,8 +13,9 @@
 @(declare-keyword assert)
 
 Let's write a macro, @racket[assert], that takes an expression and
-evaluates it, raising an error if it does not evaluate to a true
-value.
+evaluates it, raising an error that includes the expression text if it
+does not evaluate to a true value. The result of the macro itself is
+@racket[(void)].
 
 We can use @racket[define-syntax-rule] to define very simple macros. A
 @racket[define-syntax-rule] definition consists of two parts: a
@@ -23,6 +24,13 @@ look like, and the template is used to construct the term that the
 macro is rewritten to. Identifiers occuring in the pattern are called
 pattern variables; the terms that they match from the macro use are
 substituted into the template when the macro is rewritten.
+
+The first step is to write down an example of what a use of the macro
+should look like and what code that macro use should correspond
+to. Sometimes you can get away with a broad sketch of an example---and
+with simple pattern-based macros, the example sketch might be the
+macro definition itself! But other times---especially if you get
+stuck---it is helpful to be concrete.
 
 The @racket[assert] macro should be used like
 
@@ -54,6 +62,13 @@ error at run time, with the help of the @racket[quote] form and
   (error 'assert "assertion failed: ~s" (quote (>= (length ls) 1))))
 ]
 
+@lesson{Don't fixate on the exact code you first write down for the
+macro's example expansion. Often, you must change it slightly to make
+it easier for the macro to produce. In particular...}
+
+@lesson{It's often simpler to produce an expression that does a
+computation at run time than to do the computation at compile time.}
+
 So we write the macro as follows:
 
 @racketblock+eval[#:eval the-eval
@@ -69,7 +84,7 @@ When we use a macro like
 ]
 
 the macro expander substitutes the argument @racket[(>= (length ls)
-1)] for every occurrence of the pattern variable @racket[e] in the
+1)] for every occurrence of the pattern variable @racket[expr] in the
 macro definition's template---including the occurrence within the
 @racket[quote] form:
 
@@ -78,9 +93,6 @@ macro definition's template---including the occurrence within the
   (error 'assert "assertion failed: ~s"
          '(>= (length ls) 1)))
 ]
-
-@lesson{It's often simpler to produce an expression that does a
-computation at run time than to do the computation at compile time.}
 
 @exercise{Write a macro @racket[noisy-v1] that takes an expression
 @racket[_expr] and prints @racketvalfont{"evaluating
@@ -115,8 +127,9 @@ expression. (Hint: use @racket[begin0].)
 @(declare-keyword or2)
 
 Suppose we want a macro @racket[or2] that expects two expressions
-@racket[e1] and @racket[e2] and returns the first true expression
-or @racket[#f].  Here is a first attempt at defining of @racket[or2]:
+@racket[e1] and @racket[e2]. If @racket[e1] produces a true value, it
+returns that value; otherwise, it returns the value of
+@racket[e2]. Here is a first attempt at defining of @racket[or2]:
 
 @racketblock[
 (define-syntax-rule (or2 e1 e2)
@@ -324,7 +337,7 @@ result. Use @racket[with-handlers].
 }
 
 
-@section[#:tag "basic-minimize"]{Minimizing Macros}
+@section[#:tag "basic-simple"]{Keep Macros Simple}
 
 Recall @racket[capture-output] from @secref["basic-dynamic"]. The only
 reason it needs to be a macro at all is to delay the evaluation of its
@@ -470,6 +483,9 @@ list of functions to the auxiliary function:
       (get-output-string out))))
 ]
 
+@lesson{With ellipses, keep the empty case in mind, and make sure its
+expansion is legal.}
+
 @exercise{Write @racket[my-and] and @racket[my-or] macros that take
 arbitrary numbers of expressions.
 
@@ -592,10 +608,23 @@ structure. (If we are allowed to expand into @racket[let*], then of
 course implementing @racket[my-let*] using @racket[define-syntax-rule]
 is trivial.)
 
-On the other hand, @racket[let*] has a very nice recursive
-structure. We could implement it if we were able to define recursive
-macros that could behave differently given different input
-patterns. Such a macro can be defined with @racket[syntax-rules]; the
+What is would a plausible expansion of @racket[my-let*] look like,
+then? Here's one:
+
+@racketblock[
+(my-let* ([x 1] [y (f x)] [z (g x y)]) (h x y z))
+==>
+(let ([x 1])
+  (let ([y (f x)])
+    (let ([z (g x y)])
+      (h x y z))))
+]
+
+Clearly, @racket[my-let*] has a nice recursive structure. We could
+implement it if we were able to define recursive macros that could
+expand using different templates given different input patterns.
+
+Such recursive macros can be defined with @racket[syntax-rules].  A macro
 definition has the following form:
 
 @racketblock[
@@ -624,6 +653,12 @@ Inspect the macro definition and confirm that in each case, the scope
 of one of the bound identifiers consists of the following right-hand
 side expressions and the body expression.
 
+@exercise{Write a macro @racket[my-cond], which has the same syntax
+and behavior as Racket's @racket[cond] form, including @racket[else]
+and @racket[=>] clauses. Test your macro thoroughly to make sure you
+put the macro's patterns in the right order!}
+
+@;{
 Now consider a simplified version of Racket's @racket[cond]
 form. Here's the syntax:
 
@@ -658,22 +693,144 @@ identifier.
          answer-expr
          (my-cond . more-clauses))]))
 ]
+}
 
-FIXME: some time before this, talk about writing down example of
-expansion -- but don't fixate on the first way you think of
 
+@section[#:tag "basic-helpers"]{Helper Macros and Private Variables}
+
+Consider a macro @racket[my-case], which has syntax and behavior
+similar to Racket's @racket[case] form. Here's the syntax of
+@racket[my-case]:
+
+@defform[#:link-target? #f
+         #:literals (else)
+         (my-case val-expr clause ... maybe-else-clause)
+         #:grammar ([clause [(datum ...) result-expr]]
+                    [maybe-else-clause (code:line)
+                                       [else result-expr]])]{@~}
+
+Here's a first (bad) attempt at writing @racket[my-case]. Take a
+minute and look at it before you continue reading. See if you can find
+the problem(s).
+
+@racketblock[
+(define-syntax my-case-v0
+  (syntax-rules (else)
+    [(my-case-v0 val)
+     (void)]
+    [(my-case-v0 val [else result-expr])
+     result-expr]
+    [(my-case-v0 val [(datum ...) result-expr] . more-clauses)
+     (if (member val '(datum ...))
+         result-expr
+         (my-case-v0 val . more-clauses))]))
+]
+
+What's wrong with this macro?
+
+The problem is that the first argument, @racket[val], is an
+@emph{expression}, and the final template of the macro contains
+multiple references to it. The expression will be duplicated. (Note
+that I've dropped the @racket[-expr] suffix I usually use for
+expression-valued pattern variables, in an attempt to mislead you.)
+One solution would be to create a @racket[let]-bound variable in the
+third template. That would be adequate to fix this issue.
+
+There's another, although less disastrous, peculiarity about this
+macro. If the @racket[my-case-v0] expression has no clauses (or none
+besides an @racket[else] clause), then the value expression is not
+evaluated at all!  But we expect that expression to always be
+evaluated; it is a ``strict'' subexpression of @racket[my-case].
+
+In cases like these, it is useful to evaluate the strict expressions
+once, at the ``beginning'' of the macro, and store them in
+@deftech{private variables}. If there are multiple strict
+expressions, syntax ergonomics suggests they should be evaluated in
+order. If there is validation to be done on the strict expression
+arguments (if a particular type is expected, for example), it should
+also be done at this time. The rest of the macro's work can be done by
+a helper macro.
+
+A private variable is a variable created by a macro and passed to its
+helper macros but not exposed to the user. In particular, it can be
+duplicated freely, because an expression known to be a variable cannot
+have side effects. In addition, if the macro does not mutate the
+variable (nor any of the macro's helpers), then it can be trusted to
+maintain its value, and not be concurrently mutated by another thread.
+
+Here's a fixed version of the macro. I use the suffix @racket[-pv] for
+private variable.
+
+@racketblock[
+(define-syntax-rule (my-case val-expr . clauses)
+  (let ([v val-expr])
+    (my-case* v . clauses)))
+(code:line)
+(define-syntax my-case*
+  (syntax-rules (else)
+    [(my-case* val-pv)
+     (void)]
+    [(my-case* val-pv [else result-expr])
+     result-expr]
+    [(my-case* val-pv [(datum ...) result-expr] . more-clauses)
+     (if (member val-pv '(datum ...))
+         result-expr
+         (my-case val-pv . more-clauses))]))
+]
+
+Note that the only way to get a private variable is to create one or
+to get one from a trusted source. If the helper macro,
+@racket[my-case*], were exported from its module, for example, then it
+could no longer trust that its @racket[val-pv] argument was in fact a
+private variable.
+
+@exercise{Write a macro @racket[minimatch1] with the following syntax:
+
+@defform[#:link-target? #f
+         #:literals (cons quote _)
+         (minimatch1 val-expr pattern result-expr)
+         #:grammar
+         ([pattern variable-id
+                   (@#,(racket quote) datum)
+                   (cons first-pattern rest-pattern)])]{@~}
+
+The @racket[minimatch1] macro should act like @racket[match]
+restricted to a single clause and restricted to the pattern grammar
+above. The @racket[result-expr] should be evaluated in the scope of
+all of the @racket[variable-id]s in the @racket[pattern]. If the value
+produced by @racket[val-expr] does not match the @racket[pattern],
+raise an error.
+
+@;{
+;; Solution:
+(define-syntax-rule (minimatch1 val-expr pattern result-expr)
+  (let ([v val-expr])
+    (minimatch1* v pattern result-expr)))
+(define-syntax minimatch1*
+  (syntax-rules (quote cons)
+    [(minimatch1* v-pv (quote datum) result-expr)
+     (if (equal? v-pv (quote datum))
+         result-expr
+         (error 'minimatch1 "match failed"))]
+    [(minimatch1* v-pv (cons first-pattern rest-pattern) result-expr)
+     (if (pair? v-pv)
+         (let ([first-var (car v-pv)]
+               [rest-var (cdr v-pv)])
+           (minimatch1* first-var first-pattern
+                        (minimatch1* rest-var rest-pattern result-expr)))
+         (error 'minimatch1 "match failed"))]
+    [(minimatch1* v-pv variable-id result-expr)
+     (let ([variable-id v-pv])
+       result-expr)]))
+}
+}
 
 
 @; ============================================================
 
 @;{
-recursive macros
- - cond
-
-recursive macros w/ multiple variants
- - cond w/ =>, else
- - also intros identifier-subforms
- - also, syntax grammars ???
+syntax validation
+  - can't yet, must trust (eg, identifier)
 
 expansion contexts
  - forward ref to "we'll show you later how to create more contexts"
@@ -683,10 +840,6 @@ recap and misc:
  - Macros are rewrite rules, outward in, discovery process.
  - new: Don't use a macro when a function would suffice.
  - new: Not every macro needs to be written.
-
 }
-
-
-
 
 @(close-eval the-eval)
