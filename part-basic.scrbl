@@ -8,16 +8,21 @@
 @title[#:tag "part-basic"]{Basic Macrology}
 @author["Ryan Culpepper" "Claire Alvis"]
 
+
+@; ============================================================
 @section[#:tag "basic-first"]{Your First Macro}
 
 @(declare-keyword assert)
 
-Let's write a macro, @racket[assert], that takes an expression and
-evaluates it, raising an error that includes the expression text if it
-does not evaluate to a true value. The result of the macro itself is
-@racket[(void)].
+Suppose we wanted a feature, @racket[assert], that takes an expression
+and evaluates it, raising an error that includes the expression text
+if it does not evaluate to a true value. The result of the
+@racket[assert] expression itself is @racket[(void)].
 
-We can use @racket[define-syntax-rule] to define very simple macros. A
+Clearly, @racket[assert] cannot be a function; a function cannot
+access the text of its arguments. It must be a macro.
+
+We can use @racket[define-syntax-rule] to define simple macros. A
 @racket[define-syntax-rule] definition consists of two parts: a
 pattern and a template. The pattern describes what uses of the macros
 look like, and the template is used to construct the term that the
@@ -122,6 +127,45 @@ expression. (Hint: use @racket[begin0].)
 }
 
 
+@; ============================================================
+@section[#:tag "basic-facts"]{Basic Macro Facts}
+
+A macro is a rewrite rule attached to an identifier, called the macro
+name, and it only rewrites terms matching its pattern, which must be a
+parenthesized pattern starting with the macro name. A macro cannot be
+used to define arbitrary rewriting rules over existing forms; for
+example, the following transformation is not a macro:
+
+@racketblock[(if (not e1) e2 e3) ==> (if e1 e3 e2)]
+
+On the other hand, such a transformation could be implemented in the
+@racket[if] syntactic form when it is defined. Later in this guide, we
+will discuss how to extend the power of macros to more general
+transformations.
+
+Not every term in a program matching a macro's pattern is rewritten
+(``expanded'').  Macros are rewritten only in certain
+contexts---essentially, contexts where expression or definition may
+appear. For example, if @racket[assert] is the macro defined above,
+then the following occurrences of @racket[assert] are @emph{not} valid
+uses of the macro:
+
+@racketblock[
+(let ((assert (> 1 2))) ___)
+(cond [assert (odd? 4)] [else ___])
+'(assert #f)
+]
+
+The first occurrence of @racket[assert] is in a @racket[let]-binding;
+@racket[assert] is interpreted as a variable name to bind to the value
+of @racket[(> 1 2)]. In the second line, the @racket[cond] form treats
+@racket[assert] and @racket[(odd? 4)] as separate expressions, and the
+use of @racket[assert] by itself is a syntax error. In the final
+example, the @racket[assert] occurs as part of a @racket[quote]d
+constant.
+
+
+@; ============================================================
 @section[#:tag "basic-or2"]{Auxiliary Variables and Hygiene}
 
 @(declare-keyword or2)
@@ -232,6 +276,7 @@ a binder, nor is it captured by bindings in the environment where the
 macro is used, if the identifier is used as a reference.}
 
 
+@; ============================================================
 @section[#:tag "basic-binding-forms"]{Binding Forms}
 
 One of the most powerful and unique capabilities of macros is the
@@ -244,7 +289,7 @@ as literals in the macro template from binding references in macro
 arguments---binders that come from macro arguments do bind references
 in other macro arguments.)
 
-For example, consider the @racket[andlet1] macro, which takes an
+For example, suppose we want a macro @racket[andlet1], which takes an
 identifier (binder) and two expressions. The first expression is
 evaluated in the environment of the macro use, without extensions. If
 it produces a true value, the second is evaluated in that environment
@@ -286,6 +331,7 @@ identifier}.
 }
 
 
+@; ============================================================
 @section[#:tag "basic-dynamic"]{Changing an Expression's Dynamic Context}
 
 @(declare-keyword capture-output)
@@ -337,6 +383,7 @@ result. Use @racket[with-handlers].
 }
 
 
+@; ============================================================
 @section[#:tag "basic-simple"]{Keep Macros Simple}
 
 Recall @racket[capture-output] from @secref["basic-dynamic"]. The only
@@ -410,7 +457,6 @@ instructive example.)
 
 
 @; ============================================================
-
 @section[#:tag "basic-ellipses"]{Ellipsis Patterns and Templates}
 
 Let us continue with the @racket[capture-output] macro, and let us
@@ -503,6 +549,7 @@ arbitrary numbers of expressions.
 }
 
 
+@; ============================================================
 @section[#:tag "basic-pattern-dots"]{Ellipses with Complex Patterns}
 
 Consider a simplified version of Racket's @racket[let] form with the
@@ -562,36 +609,8 @@ expression is a procedure, what is the dynamic representation of a
 }
 }
 
-@;{
 
-Now consider a simplified version of Racket's @racket[cond] form with
-the following syntax:
-
-@defform[#:link-target? #f
-         (my-cond [question-expr answer-expr] ...)]{@~}
-
-We can implement this form by calling a function on dynamic
-representations of clauses. Each clause consists of two expressions;
-thus each dynamic clause representation logically consists of two
-thunks.
-
-@racketblock[
-(define-syntax-rule (my-cond [question-expr answer-expr] ...)
-  (my-cond-fun
-   (list (cons (lambda () question-expr)
-               (lambda () answer-expr))
-         ...)))
-(define (my-cond-fun dclauses)
-  (if (pair? dclauses)
-      (if ((caar dclauses))
-          ((cdar dclauses))
-          (my-cond-fun (cdr dclauses)))
-      (void)))
-]
-
-}
-
-
+@; ============================================================
 @section[#:tag "basic-rec"]{Recursive Macros}
 
 Consider Racket's @racket[let*] form. We cannot implement such a macro
@@ -696,11 +715,12 @@ identifier.
 }
 
 
+@; ============================================================
 @section[#:tag "basic-helpers"]{Helper Macros and Private Variables}
 
-Consider a macro @racket[my-case], which has syntax and behavior
-similar to Racket's @racket[case] form. Here's the syntax of
-@racket[my-case]:
+Consider the Racket @racket[case] form. Let's write a macro
+@racket[my-case], which has similar syntax and behavior. Here's the
+syntax of @racket[my-case]:
 
 @defform[#:link-target? #f
          #:literals (else)
