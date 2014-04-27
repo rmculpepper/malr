@@ -35,37 +35,76 @@ Basic hygiene.
 
 Basic pattern matching.
 
-Racket language elements: expressions, definitions, module-form forms,
-etc. Modules and languages.
+Misc advice:
+ - Don't use a macro when a function would suffice.
+ - Not every macro needs to be written.
 
-Syntax ergonomics, eg positional forms vs keyords vs identifier-tagged
+
+@; ------------------------------------------------------------
+@bold{Intermediate Macrology: syntax-parse and error-checking1}
+
+syntax-parse and error-checking
+
+The structure of syntax. Think in terms of nonterminals, one function
+per nonterminal.
+
+syntax ergonomics, eg positional forms vs keyords vs identifier-tagged
 subforms.
 
 Ergonomics/conventions: Eval subexprs in original order. Do error
 checking of arguments in order, when possible.
 
-Don't use a macro when a function would suffice.
+special subforms w/o extensibility
 
-Not every macro needs to be written.
+syntax-case and error-checking (as aside)
 
-Error checking (with @racket[syntax-parse] and without).
+Error checking without @racket[syntax-parse]
+
 
 @; ------------------------------------------------------------
-@bold{Intermediate macrology}
+@bold{Intermediate Macrology: phases}
 
-The structure of syntax. Think in terms of nonterminals, one function
-per nonterminal.
+Compile-time helper functions, modules, begin-for-syntax, phases.
 
-#%expression
+The Why of Phases.
 
-Identifier comparisons: bound-id=?, free-id=? (and phases).
+syntax templates, phases
+
+
+@; ------------------------------------------------------------
+@bold{Intermediate Macrology: under the hood}
+
+Below the pattern-matching abstractions: @racket[syntax-e],
+@racket[datum->syntax], and @racket[quote-syntax].
+
+Rule: Never use @racket[syntax->datum] on an expression or a term
+containing expressions.
+
+Source information.
+
+Syntax properties.
+
+
+@; ------------------------------------------------------------
+@bold{Intermediate Macrology: communication w/ syntax-local-value}
 
 Communication via syntax-local-value.
+ - ordinary communication
+ - extensible subforms
+
+
+@; ------------------------------------------------------------
+@bold{Intermediate Macrology: misc}
+
+Racket language elements: expressions, definitions, module-form forms,
+etc. Modules and languages.
 
 Communication via compile-time state (eg, identifier tables). Define
 vs attach.
 
-Compile-time helper functions, modules, begin-for-syntax, phases.
+#%expression
+
+Identifier comparisons: bound-id=?, free-id=? (and phases).
 
 3d syntax.
 
@@ -73,25 +112,14 @@ Hygiene details: marks, renames, namespaces.
 
 Breaking hygiene: how to do it right, and alternatives.
 
-Rule: Never use @racket[syntax->datum] on an expression or a term
-containing expressions.
-
-Below the pattern-matching abstractions: @racket[syntax-e],
-@racket[datum->syntax], and @racket[quote-syntax].
-
 How to test macros: Test run-time behavior, test binding, test syntax
 errors.
 
-Source information.
-
-Syntax properties.
-
-The Why of Phases.
-
 Monolithic vs microlithic macros. Trampoline style macros.
 
+
 @; ------------------------------------------------------------
-@bold{Advanced macrology}
+@bold{Advanced Macrology}
 
 Head expansion.
 

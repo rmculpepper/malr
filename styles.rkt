@@ -49,10 +49,10 @@
 ;; ----
 
 (define (lesson . pre-content)
-  (nested (apply italic (bold "Lesson: ") pre-content)))
+  (nested (bold "Lesson: ") (apply italic pre-content)))
 
 (define (lesson* . pre-content)
-  (nested #:style 'inset (apply italic (bold "Lesson: ") pre-content)))
+  (nested #:style 'inset (bold "Lesson: ") (apply italic pre-content)))
 
 ;; ----
 
