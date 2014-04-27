@@ -16,6 +16,7 @@
          tech/guide
          lesson
          lesson*
+         later
          exercise)
 
 (define-syntax-rule (schemekw x) (schemekeywordfont (symbol->string 'x)))
@@ -53,6 +54,9 @@
 
 (define (lesson* . pre-content)
   (nested #:style 'inset (bold "Lesson: ") (apply italic pre-content)))
+
+(define (later . pre-content)
+  (apply elem pre-content))
 
 ;; ----
 

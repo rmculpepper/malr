@@ -108,7 +108,7 @@ Identifier comparisons: bound-id=?, free-id=? (and phases).
 
 3d syntax.
 
-Hygiene details: marks, renames, namespaces.
+Hygiene details: marks, renames, namespaces, gradual discovery.
 
 Breaking hygiene: how to do it right, and alternatives.
 

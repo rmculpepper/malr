@@ -268,7 +268,7 @@ and @racket[if] as names that could be shadowed, but Racket uses the
 same binding rules for both variables and names of syntactic forms.
 
 We will discuss the actual mechanism the macro expander uses to
-enforce hygiene later in the guide.
+enforce hygiene @later{later in the guide}.
 
 @lesson{An identifier that is part of a macro template neither
 captures references in a macro argument, if the identifier is used as
@@ -298,14 +298,21 @@ expression. In other words, the scope of the identifier is the second
 expression.
 
 @racketblock+eval[#:eval the-eval
-(define-syntax-rule (andlet1 x e1 e2)
-  (let ([x e1])
-    (if x e2 #f)))
+(define-syntax-rule (andlet1 var e1 e2)
+  (let ([var e1])
+    (if var e2 #f)))
 ]
 
 By inspecting the macro template, we can see that @racket[e2] is in
-the scope of the @racket[let]-binding of @racket[x], and @racket[e1]
+the scope of the @racket[let]-binding of @racket[var], and @racket[e1]
 is not.
+
+Note that the macro does not check that the @racket[var] argument is
+an identifier---such syntax validation is not possible with
+@racket[define-syntax-rule]. If the macro is given something else, it
+produces an invalid @racket[let] expression, and @racket[let] will
+signal a syntax error. We will discuss how to do syntax validation
+@later{later in this guide}.
 
 @exercise{Write a macro @racket[iflet] that takes an identifier and
 three expressions. If the first expression (the condition) evaluates
@@ -849,13 +856,6 @@ raise an error.
 @; ============================================================
 
 @;{
-syntax validation
-  - can't yet, must trust (eg, identifier)
-
-expansion contexts
- - forward ref to "we'll show you later how to create more contexts"
- - discovery process
-
 recap and misc:
  - Macros are rewrite rules, outward in, discovery process.
  - new: Don't use a macro when a function would suffice.
