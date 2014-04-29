@@ -36,8 +36,10 @@ Basic hygiene.
 Basic pattern matching.
 
 Misc advice:
- - Don't use a macro when a function would suffice.
- - Not every macro needs to be written.
+@itemlist[
+@item{Don't use a macro when a function would suffice.}
+@item{Not every macro needs to be written.}
+]
 
 
 @; ------------------------------------------------------------
