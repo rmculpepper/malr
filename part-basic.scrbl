@@ -8,6 +8,8 @@
 @title[#:tag "part-basic"]{Basic Macrology}
 @author["Ryan Culpepper" "Claire Alvis"]
 
+This chapter introduces Racket macros and gives some general advice
+for writing them.
 
 @; ============================================================
 @section[#:tag "basic-first"]{Your First Macro}
@@ -586,6 +588,22 @@ in the scope of all of bound variables.
     body-expr))
 ]
 
+@exercise{Recall that @racket[define-syntax-rule] does no validation;
+it may be given @svar[id] arguments that aren't identifiers. Explore
+what happens when you misuse the macro. Find two expressions---misuses
+of @racket[my-let]---that cause different syntax errors to be reported
+by @racket[lambda]. Find a misuse of @racket[my-let] that produces a
+syntactically valid expression that raises a run-time error when
+evaluated. Find a misuse of @racket[my-let] that runs without error.
+
+@;{
+(let ([1 2]) 'body)         ;; lambda: not an identifier, ...
+(let ([a 1] [a 2]) 'body)   ;; lambda: duplicate argument name
+(let ([#:a 1] [b 2]) 'body) ;; arity mismatch
+(let ([[a 1] 2]) 'body)     ;; runs w/o error
+}
+}
+
 @exercise{Unlike @racket[let] and @racket[letrec], @racket[let*]
 cannot be implemented using @racket[define-syntax-rule] and
 ellipses. Why not? Think about this before reading the next section.}
@@ -678,6 +696,9 @@ Here is the definition of @racket[my-let*]:
 Inspect the macro definition and confirm that in each case, the scope
 of one of the bound identifiers consists of the following right-hand
 side expressions and the body expression.
+
+@exercise{Rewrite @racket[my-and] and @racket[my-or] as recursive
+macros.}
 
 @exercise{Write a macro @racket[my-cond], which has the same syntax
 and behavior as Racket's @racket[cond] form, including @racket[else]
@@ -854,12 +875,19 @@ raise an error.
 
 
 @; ============================================================
+@section[#:tag "basic-review"]{Basic Macrology Review}
 
-@;{
-recap and misc:
- - Macros are rewrite rules, outward in, discovery process.
- - new: Don't use a macro when a function would suffice.
- - new: Not every macro needs to be written.
-}
+Use @racket[define-syntax-rule] to define simple pattern-based
+macros. Use @racket[syntax-rules] to discriminate between different
+patterns and write recursive macros. Both systems implement proper
+lexical scoping, or hygiene. Keep in mind that neither system does
+syntax validation; we discuss validation @later{in the next section}.
 
+When designing a macro, start by writing an example use and the
+expected expansion. You may need to adjust the expansion to make it
+easier for a macro to produce. Use helper functions to implement
+complex run-time behavior, and use helper macros to implement complex
+syntactic transformations.
+
+@; ============================================================
 @(close-eval the-eval)
