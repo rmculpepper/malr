@@ -8,8 +8,8 @@
 @title[#:tag "part-basic"]{Basic Macrology}
 @author["Ryan Culpepper" "Claire Alvis"]
 
-This chapter introduces Racket macros and gives some general advice
-for writing them.
+This chapter introduces simple Racket macros and gives some advice for
+writing them.
 
 @; ============================================================
 @section[#:tag "basic-first"]{Your First Macro}
@@ -511,8 +511,8 @@ be called with at least one argument. Then, the
 message, as seen below.
 
 @racketblock+eval[#:eval the-eval
-(define-syntax-rule (capture-output e e* ...)
-  (capture-output-fun (lambda () e e* ...)))
+(define-syntax-rule (capture-output e1 e2 ...)
+  (capture-output-fun (lambda () e1 e2 ...)))
 ]
 @interaction[#:eval the-eval
 (capture-output)
@@ -535,8 +535,8 @@ list of functions to the auxiliary function:
 @lesson{With ellipses, keep the empty case in mind, and make sure its
 expansion is legal.}
 
-@exercise{Write @racket[my-and] and @racket[my-or] macros that take
-arbitrary numbers of expressions.
+@exercise{Write @racket[my-and] and @racket[my-or] macros that use
+ellipses to take arbitrary numbers of expressions.
 
 @;{
 ;; Solution:
@@ -683,8 +683,8 @@ Here is the definition of @racket[my-let*]:
   (syntax-rules ()
     [(my-let* () body-expr)
      body-expr]
-    [(my-let* ([id rhs-expr] . more-bindings) body-expr)
-     (let ([id rhs-expr]) (my-let* more-bindings body-expr))]))
+    [(my-let* ([id rhs-expr] binding ...) body-expr)
+     (let ([id rhs-expr]) (my-let* (binding ...) body-expr))]))
 ]
 
 Inspect the macro definition and confirm that in each case, the scope
@@ -694,22 +694,19 @@ side expressions and the body expression.
 @exercise{Rewrite @racket[my-and] and @racket[my-or] as recursive
 macros.}
 
-@exercise{Write a macro @racket[my-cond], which has the same syntax
-and behavior as Racket's @racket[cond] form, including @racket[else]
-and @racket[=>] clauses. Test your macro thoroughly to make sure you
-put the macro's patterns in the right order!}
 
-@;{
-Now consider a simplified version of Racket's @racket[cond]
+@; ============================================================
+@section[#:tag "basic-literals"]{Matching Literal Identifiers}
+
+Now let's consider a simplified version of Racket's @racket[cond]
 form. Here's the syntax:
 
 @defform[#:link-target? #f
          #:literals (else)
-         (mycond clause ... maybe-else-clause)
+         (my-cond clause ... maybe-else-clause)
          #:grammar ([clause [test-expr answer-expr]]
                     [maybe-else-clause (code:line)
-                                       [else answer-expr]])]
-
+                                       [else answer-expr]])]{@~}
 
 Note the two kinds of clauses: only the last clause of the
 @racket[mycond] expression can be an @racket[else] clause.  The empty
@@ -729,12 +726,22 @@ identifier.
      (void)]
     [(my-cond [else answer-expr])
      answer-expr]
-    [(my-cond [question-expr answer-expr] . more-clauses)
+    [(my-cond [question-expr answer-expr] clause ...)
      (if question-expr
          answer-expr
-         (my-cond . more-clauses))]))
+         (my-cond clause ...))]))
 ]
-}
+
+@exercise{Extend @racket[my-cond] with @racket[=>] clauses as in
+Racket's @racket[cond] form. Test your macro thoroughly to make sure
+you put the macro's patterns in the right order! Try the clauses in a
+bad order and discover what happens when you use the macro.}
+
+@exercise{Extend @racket[my-cond] so that normal clauses can have
+arbitrarily many @racket[answer-expr] expressions. If there are no
+answer expressions, then the value of the @racket[question-expr] is
+returned if it is a true value. Again, test to make sure the macro's
+clauses are in the right order.}
 
 
 @; ============================================================
