@@ -14,8 +14,6 @@ for writing them.
 @; ============================================================
 @section[#:tag "basic-first"]{Your First Macro}
 
-@(declare-keyword assert)
-
 Suppose we wanted a feature, @racket[assert], that takes an expression
 and evaluates it, raising an error that includes the expression text
 if it does not evaluate to a true value. The result of the
@@ -169,8 +167,6 @@ constant.
 
 @; ============================================================
 @section[#:tag "basic-or2"]{Auxiliary Variables and Hygiene}
-
-@(declare-keyword or2)
 
 Suppose we want a macro @racket[or2] that expects two expressions
 @racket[e1] and @racket[e2]. If @racket[e1] produces a true value, it
@@ -342,8 +338,6 @@ identifier}.
 
 @; ============================================================
 @section[#:tag "basic-dynamic"]{Changing an Expression's Dynamic Context}
-
-@(declare-keyword capture-output)
 
 So far, we've seen a few things that a macro can do with an expression
 argument. It can use its value (as in @racket[assert]); it turn it
