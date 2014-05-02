@@ -841,7 +841,7 @@ private variable.
          #:grammar
          ([pattern variable-id
                    (@#,(racket quote) datum)
-                   (cons first-pattern rest-pattern)])]{@~}
+                   (cons first-pattern rest-pattern)])]{
 
 The @racket[minimatch1] macro should act like @racket[match]
 restricted to a single clause and restricted to the pattern grammar
@@ -849,6 +849,7 @@ above. The @racket[result-expr] should be evaluated in the scope of
 all of the @racket[variable-id]s in the @racket[pattern]. If the value
 produced by @racket[val-expr] does not match the @racket[pattern],
 raise an error.
+}
 
 @;{
 ;; Solution:
@@ -873,6 +874,31 @@ raise an error.
        result-expr)]))
 }
 }
+
+@exercise{Write a macro @racket[minimatch] with the following syntax:
+
+@defform[#:link-target? #f
+         #:literals (cons quote _)
+         (minimatch val-expr clause ...)
+         #:grammar
+         ([clause [pattern result-expr]]
+          [pattern variable-id
+                   (@#,(racket quote) datum)
+                   (cons first-pattern rest-pattern)])]{
+
+The @racket[minimatch] macro should act like @racket[match] restricted
+to the pattern grammar above. Each @racket[pattern] is tried in order
+until one matches; then the corresponding @racket[result-expr] is
+evaluated in the scope of all of the @racket[pattern]'s
+@racket[variable-id]s. If the value produced by @racket[val-expr] does
+not match any @racket[pattern], raise an error.
+}
+
+Hint: Implementing pattern matching generally involves recurring
+through the structure of the pattern while keeping track of what to do
+on success as well as what to do on failure. Write the macro (and its
+helpers) using expressions to represent the success and failure
+actions.}
 
 
 @; ============================================================
