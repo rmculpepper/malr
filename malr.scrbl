@@ -9,12 +9,8 @@
 @include-section["part-basic.scrbl"]
 
 @; ============================================================
-@section{Topics}
+@section{More Topics to Cover}
 
-@; ------------------------------------------------------------
-@bold{Preliminaries}
-
-You should also know some set theory. Just because.
 
 @; ------------------------------------------------------------
 @bold{Basic macrology}
@@ -43,12 +39,16 @@ Misc advice:
 
 
 @; ------------------------------------------------------------
-@bold{Intermediate Macrology: syntax-parse and error-checking1}
+@bold{Intermediate Macrology: Specifying and Validating Syntax}
 
-syntax-parse and error-checking
+@racket[syntax-parse], syntax specification (grammars), validation and
+error-checking
 
-The structure of syntax. Think in terms of nonterminals, one function
-per nonterminal.
+The structure of syntax. Think in terms of nonterminals. When writing
+functions on syntax, write one function per nonterminal.
+
+Do functions on subterms first, then talk about moving code to
+stxclass attrs.
 
 syntax ergonomics, eg positional forms vs keyords vs identifier-tagged
 subforms.
@@ -56,25 +56,27 @@ subforms.
 Ergonomics/conventions: Eval subexprs in original order. Do error
 checking of arguments in order, when possible.
 
-special subforms w/o extensibility
+special subforms (w/o extensibility)
 
-syntax-case and error-checking (as aside)
+@racket[syntax-case] and error-checking (aside)
 
-Error checking without @racket[syntax-parse]
-
+Note: this section might need forward references to Phases section
+(just point out compile-time vs run-time code, say Phases deals with
+in more detail later).
 
 @; ------------------------------------------------------------
-@bold{Intermediate Macrology: phases}
+@bold{Intermediate Macrology: Phases}
 
-Compile-time helper functions, modules, begin-for-syntax, phases.
+Compile-time helper functions, modules, begin-for-syntax, phases,
+require for-{syntax,template}.
 
 The Why of Phases.
 
-syntax templates, phases
+syntax templates, phases, env catalog
 
 
 @; ------------------------------------------------------------
-@bold{Intermediate Macrology: under the hood}
+@bold{Intermediate Macrology: Under the Hood}
 
 Below the pattern-matching abstractions: @racket[syntax-e],
 @racket[datum->syntax], and @racket[quote-syntax].
@@ -96,7 +98,7 @@ Communication via syntax-local-value.
 
 
 @; ------------------------------------------------------------
-@bold{Intermediate Macrology: misc}
+@bold{Intermediate Macrology: uncategorized}
 
 Racket language elements: expressions, definitions, module-form forms,
 etc. Modules and languages.
@@ -118,6 +120,9 @@ How to test macros: Test run-time behavior, test binding, test syntax
 errors.
 
 Monolithic vs microlithic macros. Trampoline style macros.
+
+Applicable structs and macros that act as expressions as well as
+something else (eg struct names).
 
 
 @; ------------------------------------------------------------
