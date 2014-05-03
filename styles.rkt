@@ -72,9 +72,10 @@
     (make-delayed-element
      (lambda (renderer part info)
        ;; does the solution tag exist?
-       (define soln? (resolve-get/tentative part info (make-solution-tag tag)))
+       (define soln?
+         (and tag (resolve-get/tentative part info `(part ,(make-solution-tag tag)))))
        (if soln?
-           (elem ~ (make-link-element #f (elem "[solution]") (make-solution-tag tag)))
+           (elem ~ (seclink (make-solution-tag tag) (elem "[solution]")))
            (elem "")))
      (lambda () "")
      (lambda () "")))
@@ -95,8 +96,8 @@
   `(exercise ,(doc-prefix #f #f tag)))
 
 (define-syntax-rule (solution-section #:tag tag)
-  (begin (section "Solution for " (exercise-ref tag))
-         (make-target-element #f "Solution:" (make-solution-tag tag))))
+  (section #:tag (make-solution-tag tag)
+           "Solution for " (exercise-ref tag)))
 
 #|
 (define (solution #:tag tag . pre-content)
@@ -106,4 +107,4 @@
 |#
 
 (define (make-solution-tag tag)
-  `(exercise-solution ,(doc-prefix #f #f tag)))
+  (string-append "exercise-solution-" tag))

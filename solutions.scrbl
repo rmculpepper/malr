@@ -9,6 +9,9 @@
 
 @(local-table-of-contents)
 
+@;{Each solution gets a separate section and a separate page, to
+prevent spoilers.}
+
 @;@section[#:tag "solutions-basic"]{Solutions to Exercises in @secref["basic"]}
 
 @solution-section[#:tag "noisy-v1"]
@@ -25,7 +28,6 @@
   (begin (printf "evaluating ~s..." 'expr) 
          (begin0 expr (printf "done\n"))))
 ]
-}
 
 
 @(close-eval the-eval)
