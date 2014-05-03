@@ -12,6 +12,11 @@
 @; ============================================================
 @section{More Topics to Cover}
 
+@;{
+TODO
+- solutions to selected exercises
+}
+
 
 @; ------------------------------------------------------------
 @bold{Basic macrology}
