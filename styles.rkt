@@ -20,7 +20,7 @@
          exercise
          exercise-number
          exercise-ref
-         solution)
+         solution-section)
 
 (define-syntax-rule (schemekw x) (schemekeywordfont (symbol->string 'x)))
 (define-syntax-rule (schemevar x) (schemevarfont (symbol->string 'x)))
@@ -72,7 +72,7 @@
     (make-delayed-element
      (lambda (renderer part info)
        ;; does the solution tag exist?
-       (define soln? (resolve-get/tentative part info `(exercise-solution ,tag)))
+       (define soln? (resolve-get/tentative part info (make-solution-tag tag)))
        (if soln?
            (elem ~ (make-link-element #f (elem "[solution]") (make-solution-tag tag)))
            (elem "")))
@@ -95,13 +95,15 @@
   `(exercise ,(doc-prefix #f #f tag)))
 
 (define-syntax-rule (solution-section #:tag tag)
-  (section #:tag `(exercise-solution ,tag)
-           "Solution for " (exercise-ref tag)))
+  (begin (section "Solution for " (exercise-ref tag))
+         (make-target-element #f "Solution:" (make-solution-tag tag))))
 
+#|
 (define (solution #:tag tag . pre-content)
   (define header (bold "Solution for " (exercise-ref tag) ": "))
   (define header* (make-target-element #f header (make-solution-tag tag)))
   (apply nested header* pre-content))
+|#
 
 (define (make-solution-tag tag)
   `(exercise-solution ,(doc-prefix #f #f tag)))
