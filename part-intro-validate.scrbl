@@ -142,7 +142,7 @@ validation? Which are not?
 
 
 @; ============================================================
-@section[#:tag "valid-cs"]{Context-Sensitive Syntax Checking}
+@section[#:tag "valid-cs"]{Context-Sensitive Validation}
 
 In @exercise-ref["my-let-valid"] you rewrote @racket[my-let] using
 @racket[syntax-parse] and added syntax class annotations to validate
@@ -264,11 +264,30 @@ rename the previous definition of @racket[my-let*] from
 @secref["basic-rec"] and reuse it as a helper macro.}
 
 
-
+@; ============================================================
 
 @;{
-;; exercise: minimatch w/ unique vars!
+;; minimatch w/ unique vars!
+;; - first w/ functions
+;; - then w/ stxclasses
 }
+
+@; ============================================================
+@section[#:tag "valid-old"]{Validating Syntax using @racket[syntax-case]}
+
+Occasionally you will read macros that do not use
+@racket[syntax-parse]. They may have been written before
+@racket[syntax-parse] was added to Racket, or they may be written with
+the want or need to avoid a dependency on @racket[syntax-parse].
+
+The other main macro-definition form in Racket---and still the most
+common, as of 2014---is @racket[syntax-case]. It uses the same simple
+pattern language as @racket[syntax-rules] while allowing arbitrary
+code to compute the expansion result.
+
+FIXME: fenders (bad error message)
+
+FIXME: error checking like above
 
 
 @; ============================================================
