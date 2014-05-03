@@ -309,15 +309,6 @@ evaluated in its scope; otherwise, the third expression is evaluated
 (equal? (iflet x (assoc 1 alist) (cdr x) 'none) 'apple)
 (equal? (let ([x 'plum]) (iflet x (assoc 3 alist) (cdr x) x)) 'plum)
 ]
-
-@;{
-;; Solution:
-(define-syntax-rule (iflet x e1 e2 e3)
-  (let ([tmp e1])
-    (if tmp
-        (let ([x tmp]) e2)
-        e3)))
-}
 }
 
 
@@ -425,23 +416,11 @@ implement the dynamic behavior.
 }
 }
 
-@exercise{Rewrite the @racket[andlet1] macro so that the dynamic
-behavior is implemented by a function. What happens to the identifier
-argument? (Note: this macro is so simple that there is no benefit to
-creating a separate function to handle it. Do it anyway; it's an
-instructive example.)
-
-@;{
-;; Solution:
-(define-syntax-rule (andlet1 x e1 e2)
-  (andlet1-fun (lambda () e1) (lambda (x) e2)))
-(define (andlet1-fun thunk1 fun2)
-  (let ([tmp (thunk1)])
-    (if tmp
-        (fun2 tmp)
-        #f)))
-}
-}
+@exercise[#:tag "andlet1-w-fun"]{Rewrite the @racket[andlet1] macro so
+that the dynamic behavior is implemented by a function. What happens
+to the identifier argument? (Note: this macro is so simple that there
+is no benefit to creating a separate function to handle it. Do it
+anyway; it's an instructive example.)}
 
 
 @; ============================================================
@@ -588,31 +567,11 @@ raises a run-time error when evaluated. Find a misuse of
 cannot be implemented using @racket[define-syntax-rule] and
 ellipses. Why not? Think about this before reading the next section.}
 
-@exercise{Write a macro @racket[my-cond-v0], which has the pattern
-@racket[(my-cond-v0 [_question-expr _answer-expr] ...)] and acts like
-Racket's @racket[cond] form. Hint: if the dynamic representation of an
-expression is a procedure, what is the dynamic representation of a
-@racket[my-cond-v0] clause?
-
-@;{
-;; Solution:
-(define-syntax-rule (my-cond-v0 [question-expr answer-expr] ...)
-  (my-cond-v0-fun
-   (list
-    (cons    ;; bleh, I know, dirty use of cons
-     (lambda () question-expr)
-     (lambda () answer-expr))
-    ...)))
-(define (my-cond-v0-fun clauses)
-  (if (pair? clauses)
-      (let ([question-thunk (car (car clauses))]
-            [answer-thunk (cdr (car clauses))])
-        (if (question-thunk)
-            (answer-thunk)
-            (my-cond-v0-fun (cdr clauses))))
-      (void)))
-}
-}
+@exercise[#:tag "my-cond-v0"]{Write a macro @racket[my-cond-v0], which
+has the pattern @racket[(my-cond-v0 [_question-expr _answer-expr]
+...)] and acts like Racket's @racket[cond] form. Hint: if the dynamic
+representation of an expression is a procedure, what is the dynamic
+representation of a @racket[my-cond-v0] clause?}
 
 
 @; ============================================================
@@ -819,10 +778,11 @@ to get one from a trusted source. If the helper macro,
 could no longer trust that its @racket[val-pv] argument was in fact a
 private variable.
 
-@exercise{Write a macro @racket[minimatch1] with the following syntax:
+@exercise[#:tag "minimatch1"]{Write a macro @racket[minimatch1] with
+the following syntax:
 
 @defform[#:link-target? #f
-         #:literals (cons quote _)
+         #:literals (cons quote)
          (minimatch1 val-expr pattern result-expr)
          #:grammar
          ([pattern variable-id
@@ -835,31 +795,7 @@ above. The @racket[result-expr] should be evaluated in the scope of
 all of the @racket[variable-id]s in the @racket[pattern]. If the value
 produced by @racket[val-expr] does not match the @racket[pattern],
 raise an error.
-}
-
-@;{
-;; Solution:
-(define-syntax-rule (minimatch1 val-expr pattern result-expr)
-  (let ([v val-expr])
-    (minimatch1* v pattern result-expr)))
-(define-syntax minimatch1*
-  (syntax-rules (quote cons)
-    [(minimatch1* v-pv (quote datum) result-expr)
-     (if (equal? v-pv (quote datum))
-         result-expr
-         (error 'minimatch1 "match failed"))]
-    [(minimatch1* v-pv (cons first-pattern rest-pattern) result-expr)
-     (if (pair? v-pv)
-         (let ([first-var (car v-pv)]
-               [rest-var (cdr v-pv)])
-           (minimatch1* first-var first-pattern
-                        (minimatch1* rest-var rest-pattern result-expr)))
-         (error 'minimatch1 "match failed"))]
-    [(minimatch1* v-pv variable-id result-expr)
-     (let ([variable-id v-pv])
-       result-expr)]))
-}
-}
+}}
 
 @exercise{Write a macro @racket[minimatch] with the following syntax:
 

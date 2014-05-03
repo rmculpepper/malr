@@ -90,7 +90,7 @@
 
 (define (exercise-ref tag)
   (define exnum (exercise-number tag))
-  (make-link-element #f (format "Exercise ~s" exnum) (make-exercise-tag tag)))
+  (make-link-element #f (elem "Exercise" ~ (number->string exnum)) (make-exercise-tag tag)))
 
 (define (make-exercise-tag tag)
   `(exercise ,(doc-prefix #f #f tag)))
