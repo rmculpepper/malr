@@ -5,7 +5,7 @@
 
 @(define the-eval (make-base-eval))
 
-@title[#:tag "part-basic"]{Basic Macrology}
+@title[#:tag "basic"]{Basic Macrology}
 @author["Ryan Culpepper" "Claire Alvis"]
 
 This chapter introduces simple Racket macros and gives some advice for
@@ -99,32 +99,17 @@ macro definition's template---including the occurrence within the
          '(>= (length ls) 1)))
 ]
 
-@exercise{Write a macro @racket[noisy-v1] that takes an expression
-@racket[_expr] and prints @racketvalfont{"evaluating
+@exercise[#:tag "noisy-v1"]{Write a macro @racket[noisy-v1] that takes
+an expression @racket[_expr] and prints @racketvalfont{"evaluating
 @racket[_expr]\n"} before evaluating the expression. The result of the
 macro should be the result of the expression. (Hint: use
-@racket[begin].)
+@racket[begin].)}
 
-@;{
-;; Solution:
-(define-syntax-rule (noisy-v1 expr)
-  (begin (printf "evaluating ~s\n" 'expr) expr))
-}
-}
-
-@exercise{Write a macro @racket[noisy-v2] that takes an expression
-@racket[_expr] and prints @racketvalfont{"evaluating @racket[_expr]
-..."} before evaluating the expression and @racketvalfont{"done\n"}
-afterwards. The result of the macro should be the result of the
-expression. (Hint: use @racket[begin0].)
-
-@;{
-;; Solution:
-(define-syntax-rule (noisy-v2 expr)
-  (begin (printf "evaluating ~s..." 'expr) 
-         (begin0 expr (printf "done\n"))))
-}
-}
+@exercise[#:tag "noisy-v2"]{Write a macro @racket[noisy-v2] that takes
+an expression @racket[_expr] and prints @racketvalfont{"evaluating
+@racket[_expr] ..."} before evaluating the expression and
+@racketvalfont{"done\n"} afterwards. The result of the macro should be
+the result of the expression. (Hint: use @racket[begin0].)}
 
 
 @; ============================================================

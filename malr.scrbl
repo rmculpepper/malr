@@ -8,6 +8,7 @@
 
 @include-section["part-basic.scrbl"]
 @include-section["part-intro-validate.scrbl"]
+@include-section["solutions.scrbl"]
 
 @; ============================================================
 @section{More Topics to Cover}
