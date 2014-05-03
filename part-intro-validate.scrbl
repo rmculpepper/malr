@@ -5,8 +5,7 @@
 
 @(define the-eval (make-base-eval))
 
-@title[#:tag "part-intro-validate"]{Intermediate Macrology: Specifying
-and Validating Syntax}
+@title[#:tag "part-intro-validate"]{Specifying and Validating Syntax}
 
 @; ============================================================
 @section[#:tag "valid-first"]{Basic Syntax Validation}
