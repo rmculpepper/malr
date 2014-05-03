@@ -7,6 +7,7 @@
 @(local-table-of-contents #|#:style 'immediate-only|#)
 
 @include-section["part-basic.scrbl"]
+@include-section["part-intro-validate.scrbl"]
 
 @; ============================================================
 @section{More Topics to Cover}
