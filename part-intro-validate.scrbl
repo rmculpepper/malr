@@ -118,8 +118,8 @@ keywords from expressions when parsing syntax.
 
 In short, we can annotate @racket[e1] and @racket[e2] with the
 @racket[expr] syntax class, but we should keep in mind the syntactic
-check is very shallow; we do it primarily to signal our intent to use
-@racket[e1] and @racket[e2] as expressions.
+checking is very shallow; we do it primarily to signal our intent to
+use @racket[e1] and @racket[e2] as expressions.
 
 @racketblock+eval[#:eval the-eval
 (define-syntax (andlet1 stx)
@@ -132,13 +132,159 @@ check is very shallow; we do it primarily to signal our intent to use
 @exercise{Add syntax validation to @racket[iflet] from
 @exercise-ref["iflet"] by rewriting it to use @racket[syntax-parse].}
 
-@exercise{Add syntax validation to @racket[my-let] from
-@exercise-ref["my-let"] by rewriting it to use
+@exercise[#:tag "my-let-valid"]{Add syntax validation to
+@racket[my-let] from @exercise-ref["my-let"] by rewriting it to use
 @racket[syntax-parse]. Revisit each example misuse you
 discovered. Which of the misuses are now rejected due to syntax
 validation? Which are not?
 
 @;{All but ``duplicate argument name'' are now caught.}
+}
+
+
+@; ============================================================
+@section[#:tag "valid-cs"]{Context-Sensitive Syntax Checking}
+
+In @exercise-ref["my-let-valid"] you rewrote @racket[my-let] using
+@racket[syntax-parse] and added syntax class annotations to validate
+that the variable arguments are identifiers. Here's the code:
+
+@racketblock+eval[#:eval the-eval
+(define-syntax (my-let stx)
+  (syntax-parse stx
+    [(_ ([var:id rhs:expr] ...) body:expr)
+     #'((lambda (var ...) body) rhs ...)]))
+]
+
+You should have also tested your solution against the four kinds of
+misuses that the @racket[define-syntax-rules] version didn't
+catch. Let's try them again, and see which ones are caught by the new
+version of @racket[my-let].
+
+@interaction[#:eval the-eval
+(code:line (my-let ([1 2]) 'body) (code:comment "was `lambda: not an identifier, ...'"))
+(code:line (my-let ([a 1] [a 2]) 'body) (code:comment "was `lambda: duplicate argument name'"))
+(code:line (my-let ([#:a 1] [b 2]) 'body) (code:comment "was `arity mismatch'"))
+(code:line (my-let ([[a 1] 2]) 'body) (code:comment "previously ran without error"))
+]
+
+Three of the four misuses now signal an error in terms of
+@racket[my-let]. Let's look more closely at the one that doesn't.
+
+@interaction[#:eval the-eval
+(code:line (my-let ([a 1] [a 2]) 'body) (code:comment "was `lambda: duplicate argument name'"))
+]
+
+Neither occurrence of @racket[a] is wrong by itself; only the use of
+both of them in the same sequence of bindings is problematic. In other
+words, each binding variable is subject to a @emph{context-sensitive}
+constraint---it must be distinct from any previous binding variable in
+the sequence. Syntax class annotations represent @emph{context-free}
+constraints: here, that the term must be an identifier.
+
+We can check context-sensitive constraints explicitly by inserting
+code between the pattern and the template.
+
+@racketblock+eval[#:eval the-eval
+(define-syntax (my-let stx)
+  (syntax-parse stx
+    [(_ ([var:id rhs:expr] ...) body:expr)
+     (let loop ([vars (syntax->list #'(var ...))]
+                [seens null])
+       ;; vars is list of variables to check
+       ;; seens is prefix of variables already seen
+       (when (pair? vars)
+         (when (for/or ([seen (in-list seens)])
+                 (bound-identifier=? (car vars) seen))
+           (raise-syntax-error #f
+             "duplicate identifier"
+             stx (car vars)))
+         (loop (cdr vars) (cons (car vars) seens))))
+     #'((lambda (var ...) body) rhs ...)]))
+]
+
+This code contains some new features. Again, I'll mention them briefly
+here, and they will be explained in more detail @later{later}.
+
+@itemlist[
+
+@item{We use @racket[(syntax->list #'(var ...))] to get a list of the
+@racket[var] identifiers.}
+
+@item{We use @racket[bound-identifier=?] to check whether the current
+@racket[var] is equal to a previous @racket[var] in the list.}
+
+@item{When a duplicate is discovered, we call
+@racket[raise-syntax-error], which takes @racket[#f] (nearly always;
+see the documentation for details), an error message, a ``big term'',
+and a ``little term''. The big term is the whole expression; its
+leading identifier will be used as the complaining party---thus,
+``@racket[my-let]: duplicate identifier''. The little term is the
+precise location of the error---here, it is the duplicate variable.}
+
+]
+
+With the new error-checking code, @racket[my-let] catches the
+duplicate instead of passing it along to @racket[lambda] to discover:
+
+@interaction[#:eval the-eval
+(code:line (my-let ([a 1] [a 2]) 'body) (code:comment "was `lambda: duplicate argument name'"))
+]
+
+I've written out the error-checking code above to give you some
+insight into how it is done, but there is a shorter way to write
+it. Racket has a function called @racket[check-duplicate-identifier]
+that finds duplicate identifiers using
+@racket[bound-identifier=?]. And @racket[syntax-parse] offers a
+@racket[#:fail-when] clause that replaces the call to
+@racket[raise-syntax-error]. Here is the simpler version of the macro:
+
+@racketblock+eval[#:eval the-eval
+(define-syntax (my-let stx)
+  (syntax-parse stx
+    [(_ ([var:id rhs:expr] ...) body:expr)
+     #:fail-when (check-duplicate-identifier
+                  (syntax->list #'(var ...)))
+                 "duplicate identifier"
+     #'((lambda (var ...) body) rhs ...)]))
+]
+
+Recall that a syntax error contains a big term and a little term;
+@racket[syntax-parse] knows the big term, and
+@racket[check-duplicate-identifier] returns either @racket[#f] or a
+duplicate identifier---the identifier is the little term.
+
+@lesson{When writing a binding form, use @racket[bound-identifier=?]
+or @racket[check-duplicate-identifier] to check for collisions between
+binders.}
+
+@exercise[#:tag "my-let*-distinct"]{Write a macro
+@racket[my-let*-distinct] that behaves like @racket[let*] except that
+it requires its variables to be distinct, like @racket[let]. Hint:
+rename the previous definition of @racket[my-let*] from
+@secref["basic-rec"] and reuse it as a helper macro.}
+
+
+
+
+@;{
+;; exercise: minimatch w/ unique vars!
+}
+
+
+@; ============================================================
+
+@;{
+Terminology
+
+terms; terms can be specialized by kind of data (identifier, keyword,
+etc)
+
+forms; forms are matter of intent/interpretation and context used in
+(expression, binder/reference, binding-clause, etc)
+
+maybe call compound terms w/ interpretation a "clause" of some sort
+(eg, cond clause, binding clause (in let), etc). (???)
 }
 
 

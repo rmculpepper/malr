@@ -592,10 +592,10 @@ raises a run-time error when evaluated. Find a misuse of
 @racket[my-let] that runs without error.
 
 @;{
-(let ([1 2]) 'body)         ;; lambda: not an identifier, ...
-(let ([a 1] [a 2]) 'body)   ;; lambda: duplicate argument name
-(let ([#:a 1] [b 2]) 'body) ;; arity mismatch
-(let ([[a 1] 2]) 'body)     ;; runs w/o error
+(my-let ([1 2]) 'body)         ;; lambda: not an identifier, ...
+(my-let ([a 1] [a 2]) 'body)   ;; lambda: duplicate argument name
+(my-let ([#:a 1] [b 2]) 'body) ;; arity mismatch
+(my-let ([[a 1] 2]) 'body)     ;; runs w/o error
 }
 }
 
