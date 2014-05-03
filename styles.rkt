@@ -17,7 +17,8 @@
          lesson
          lesson*
          later
-         exercise)
+         exercise
+         exercise-ref)
 
 (define-syntax-rule (schemekw x) (schemekeywordfont (symbol->string 'x)))
 (define-syntax-rule (schemevar x) (schemevarfont (symbol->string 'x)))
@@ -61,7 +62,18 @@
 ;; ----
 
 (define exercise-counter 1)
+(define exercise-tags (make-hash))
 
-(define (exercise . pre-content)
-  (begin0 (apply nested (bold (format "Exercise ~s: " exercise-counter)) pre-content)
-    (set! exercise-counter (add1 exercise-counter))))
+(define (exercise #:tag [tag #f] . pre-content)
+  (define exnum (begin0 exercise-counter (set! exercise-counter (add1 exercise-counter))))
+  (define header (bold (format "Exercise ~s: " exnum)))
+  (define header* (if tag (make-target-element #f header (make-exercise-tag tag)) header))
+  (when tag (hash-set! exercise-tags tag exnum))
+  (apply nested header* pre-content))
+
+(define (exercise-ref tag)
+  (define exnum (hash-ref exercise-tags tag))
+  (make-link-element #f (format "Exercise ~s" exnum) (make-exercise-tag tag)))
+                     
+(define (make-exercise-tag tag)
+  `(exercise ,(doc-prefix #f #f tag)))

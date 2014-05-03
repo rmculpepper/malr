@@ -312,12 +312,12 @@ produces an invalid @racket[let] expression, and @racket[let] will
 signal a syntax error. We will discuss how to do syntax validation
 @later{later in this guide}.
 
-@exercise{Write a macro @racket[iflet] that takes an identifier and
-three expressions. If the first expression (the condition) evaluates
-to a true value, that value is bound to the identifier and the second
-expression (the ``then branch'') is evaluated in its scope; otherwise,
-the third expression is evaluated @emph{outside the scope of the
-identifier}.
+@exercise[#:tag "iflet"]{Write a macro @racket[iflet] that takes an
+identifier and three expressions. If the first expression (the
+condition) evaluates to a true value, that value is bound to the
+identifier and the second expression (the ``then branch'') is
+evaluated in its scope; otherwise, the third expression is evaluated
+@emph{outside the scope of the identifier}.
 
 @racketblock[
 (define alist '((1 . apple) (2 . pear)))
@@ -582,13 +582,14 @@ in the scope of all of bound variables.
     body-expr))
 ]
 
-@exercise{Recall that @racket[define-syntax-rule] does no validation;
-it may be given @svar[id] arguments that aren't identifiers. Explore
-what happens when you misuse the macro. Find two expressions---misuses
-of @racket[my-let]---that cause different syntax errors to be reported
-by @racket[lambda]. Find a misuse of @racket[my-let] that produces a
-syntactically valid expression that raises a run-time error when
-evaluated. Find a misuse of @racket[my-let] that runs without error.
+@exercise[#:tag "my-let"]{Recall that @racket[define-syntax-rule] does
+no validation; it may be given @svar[id] arguments that aren't
+identifiers. Explore what happens when you misuse the macro. Find two
+expressions---misuses of @racket[my-let]---that cause different syntax
+errors to be reported by @racket[lambda]. Find a misuse of
+@racket[my-let] that produces a syntactically valid expression that
+raises a run-time error when evaluated. Find a misuse of
+@racket[my-let] that runs without error.
 
 @;{
 (let ([1 2]) 'body)         ;; lambda: not an identifier, ...
