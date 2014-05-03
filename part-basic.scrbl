@@ -797,7 +797,8 @@ produced by @racket[val-expr] does not match the @racket[pattern],
 raise an error.
 }}
 
-@exercise{Write a macro @racket[minimatch] with the following syntax:
+@exercise[#:tag "minimatch"]{Write a macro @racket[minimatch] with the
+following syntax:
 
 @defform[#:link-target? #f
          #:literals (cons quote _)

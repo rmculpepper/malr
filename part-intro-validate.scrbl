@@ -137,7 +137,7 @@ use @racket[e1] and @racket[e2] as expressions.
 discovered. Which of the misuses are now rejected due to syntax
 validation? Which are not?
 
-@;{All but ``duplicate argument name'' are now caught.}
+The solution is discussed in the next section, @secref["valid-cs"].
 }
 
 

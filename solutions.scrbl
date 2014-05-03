@@ -163,5 +163,62 @@ resulting in syntax errors from @racket[let].
 
 
 @; ----------------------------------------
+@solution-section[#:tag "minimatch"]
+
+Like @racket[minimatch1], the @racket[minimatch] macro needs a private
+variable for the value being matched. It needs a second private
+variable to represent the failure action. Consider the pattern
+@racket[(cons 'a 'b)]. The whole pattern can fail, because the value
+is not a pair; the first sub-pattern can fail; and the second
+sub-pattern can fail. There must be three occurrences of the same
+failure action---thus to avoid bad duplication, we must introduce a
+private variable.
+
+The main macro, @racket[minimatch], just sets up the private variable
+for the value to be matched. The first helper macro,
+@racket[minimatch-clauses], recurs through the clauses and sets up
+private variables for failure actions. The second helper macro is
+similar to the helper macro for @racket[minimatch1], but it takes an
+extra argument, a failure expression, that it uses instead of directly
+calling @racket[error].
+
+@racketblock[
+(define-syntax minimatch
+  (syntax-rules ()
+    [(minimatch val-expr clause ...)
+     (let ([v val-expr])
+       (minimatch-clauses v clause ...))]))
+
+(define-syntax minimatch-clauses
+  (syntax-rules ()
+    [(minimatch-clauses v)
+     (error 'minimatch "match failed")]
+    [(minimatch-clauses v [pattern1 result-expr1] clause ...)
+     (let ([fail (lambda () (minimatch* v clause ...))])
+       (minimatch1/fail v pattern1 result-expr1 (fail)))]))
+
+(define-syntax minimatch1/fail
+  (syntax-rules (cons quote)
+    [(minimatch1/fail v (@#,racket[quote] datum) result-expr fail-expr)
+     (if (equal? v (@#,racket[quote] datum))
+         result-expr
+         fail-expr)]
+    [(minimatch1/fail v (cons first-pattern rest-pattern) result-expr fail-expr)
+     (if (pair? v)
+         (let ([first-var (car v)]
+               [rest-var (cdr v)])
+           (minimatch1/fail
+             first-var 
+             first-pattern
+             (minimatch1/fail rest-var rest-pattern result-expr fail-expr)
+             fail-expr))
+         fail-expr)]
+    [(minimatch1/fail v variable-id result-expr fail-expr)
+     (let ([variable-id v])
+       result-expr)]))
+]
+
+
+@; ----------------------------------------
 
 @(close-eval the-eval)
