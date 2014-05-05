@@ -311,6 +311,10 @@ evaluated in its scope; otherwise, the third expression is evaluated
 ]
 }
 
+@lesson{When designing a binding form, write tests that check that
+expressions have the right variables in scope---and don't have the
+wrong variables in scope.}
+
 
 @; ============================================================
 @section[#:tag "basic-dynamic"]{Changing an Expression's Dynamic Context}
