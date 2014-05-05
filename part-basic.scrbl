@@ -5,7 +5,7 @@
 
 @(define the-eval (make-base-eval))
 
-@title[#:tag "basic"]{Basic Macrology}
+@title[#:tag "basic" #:version ""]{Basic Macrology}
 @author["Ryan Culpepper" "Claire Alvis"]
 
 This chapter introduces simple Racket macros and gives some advice for

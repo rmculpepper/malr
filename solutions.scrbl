@@ -5,7 +5,7 @@
 
 @(define the-eval (make-base-eval))
 
-@title[#:tag "solutions" #:style '(toc)]{Solutions to Selected Exercises}
+@title[#:tag "solutions" #:style '(toc)]{Solutions for Selected Exercises}
 
 @(local-table-of-contents)
 

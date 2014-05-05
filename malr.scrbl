@@ -1,7 +1,7 @@
 #lang scribble/manual
 @(require "styles.rkt")
 
-@title[#:style 'toc]{Macros and Languages in Racket}
+@title[#:style 'toc #:version ""]{Macros and Languages in Racket}
 @author[@author+email["Ryan Culpepper" "ryanc@racket-lang.org"]]
 
 @(local-table-of-contents #|#:style 'immediate-only|#)
@@ -11,7 +11,7 @@
 @include-section["solutions.scrbl"]
 
 @; ============================================================
-@section{More Topics to Cover}
+@section[#:tag "todo-topics"]{More Topics to Cover}
 
 @;{
 TODO
