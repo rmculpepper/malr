@@ -1,7 +1,7 @@
 #lang scribble/manual
 @(require scribble/eval
           "styles.rkt"
-          (for-label racket/base racket/match))
+          (for-label racket/base racket/match rackunit))
 
 @(define the-eval (make-base-eval))
 
@@ -347,6 +347,16 @@ output generated during the expression's evaluation.
 (capture-output (printf "hello world!"))
 ]
 
+@exercise{Write a macro @racket[forever] that takes an expression and
+evaluates it repeatedly in a loop.
+
+@;{
+;; Solution:
+(define-syntax-rule (forever e)
+  (letrec ([loop (lambda () e (loop))]) (loop)))
+}
+}
+
 @exercise{Write a macro @racket[handle] that takes two expressions. It
 should evaluate the first expression, and if it returns a value, the
 result of the macro use is that value. If the first expression raises
@@ -395,8 +405,8 @@ helper function @racket[capture-output-fun].
 @lesson{Keep the code introduced by a macro to a minimum. Rely on
 helper functions to implement complex dynamic behavior.}
 
-@exercise{Rewrite the @racket[handle] macro so that the dynamic
-behavior is implemented by a function.
+@exercise{Rewrite the @racket[handle] and @racket[forever] macros so
+that the dynamic behavior is implemented by a function.
 
 @;{
 ;; Solution:
@@ -404,15 +414,7 @@ behavior is implemented by a function.
   (handle-fun (lambda () e1) (lambda () e2)))
 (define (handle-fun thunk1 thunk2)
   (with-handlers ([exn:fail? (lambda (_) (thunk2))]) (thunk1)))
-}
-}
 
-@exercise{Write a macro @racket[forever] that takes an expression and
-evaluates it repeatedly in a loop. Write a helper function to
-implement the dynamic behavior.
-
-@;{
-;; Solution:
 (define-syntax-rule (forever e)
   (forever-fun (lambda () e)))
 (define (forever-fun thunk)
@@ -425,6 +427,59 @@ that the dynamic behavior is implemented by a function. What happens
 to the identifier argument? (Note: this macro is so simple that there
 is no benefit to creating a separate function to handle it. Do it
 anyway; it's an instructive example.)}
+
+@exercise{Write a macro @racket[test] that behaves similarly to 
+@racket[test-equal?] from @racketmodname[rackunit]. It takes
+three expressions: a test name (string) expression, an ``actual''
+expression, and an ``expected'' expression. If the expressions
+evaluate to @racket[equal?] values, then it prints nothing and returns
+@racket[(void)]; if the expressions evaluate to values that are not
+equal, then it prints @racketvalfont{"test @racket[_test-name]
+failed\n"}; and if either expression raises an error, it prints
+@racketvalfont{"test @racket[_test-name] failed\n"}.
+
+@;{;; Solution
+
+(define-syntax-rule (test name-expr actual-expr expected-expr)
+  (test-fun name-expr (lambda () actual-expr) (lambda () expected-expr)))
+
+(define (test-fun test-name actual-thunk expected-thunk)
+  (with-handlers ([exn:fail?
+                   (lambda (e)
+                     (printf "test ~s failed\n" test-name))])
+    (unless (equal? (actual-thunk) (expected-thunk))
+      (printf "test ~s failed\n" test-name))))
+
+Note: test-name is strict. Could evalute the test name expr lazily?
+Bad idea; would make things more complicated if the test did fail.
+}
+}
+
+@;{TODO exercise: in-tmp-dir, cleanup (macro is trivial; need to know Racket eg dynamic-wind)}
+@;{TODO exercise: delay, make-promise, force}
+
+@exercise{Every macro you've written (or rewritten) in this section
+desugars to a function applied to one or more expressions with
+@racket[lambda] wrapped around them. In which cases is the macro
+worthwhile, and in which cases would it be better to define a function
+instead and let users write the @racket[lambda]s themselves?
+
+@;{
+Solution: it's a matter of taste, and it it depends on context.
+
+If a macro is just a simple desugaring into function+lambda, then
+maybe it doesn't need to be a macro at all.
+
+OTOH, consider the @racket[delay] macro. There's no question that when
+writing lazy code (with a lazy accent?), @racket[delay] is worthwhile;
+@racket[(promise (lambda () _))] everywhere just wouldn't cut it.
+
+Also (later), can be awkward to handle clauses-as-data-structures
+using function.
+}
+}
+
+@lesson{Not every macro that can be written needs to be written.}
 
 
 @; ============================================================
@@ -528,15 +583,21 @@ following syntax:
 
 @defform[#:link-target? #f
          #:literals (else)
-         (my-let ([id rhs-expr] ...) body-expr)]{@~}
+         (my-let ([var-id rhs-expr] ...) body-expr)]{
+
+The @racket[my-let] form evaluates all of the @racket[rhs-expr]s,
+binds them to the @racket[var-id]s, and returns the value of the
+@racket[body-expr] evaluated in the scope of all of the
+@racket[var-id]s.
+}
 
 We can use ellipses after a complex pattern, not just after a simple
 pattern variable, as long as the components of the pattern are treated
 uniformly in the template:
 
 @racketblock[
-(define-syntax-rule (my-let ([id rhs-expr] ...) body-expr)
-  ((lambda (id ...) body-expr) rhs-expr ...))
+(define-syntax-rule (my-let ([var-id rhs-expr] ...) body-expr)
+  ((lambda (var-id ...) body-expr) rhs-expr ...))
 ]
 
 We can also implement @racket[my-letrec], which has the same syntax as
@@ -544,14 +605,14 @@ We can also implement @racket[my-letrec], which has the same syntax as
 in the scope of all of bound variables.
 
 @racketblock[
-(define-syntax-rule (my-letrec ([id rhs-expr] ...) body-expr)
-  (my-let ([id #f] ...)
-    (set! id rhs-expr) ...
+(define-syntax-rule (my-letrec ([var-id rhs-expr] ...) body-expr)
+  (my-let ([var-id #f] ...)
+    (set! var-id rhs-expr) ...
     body-expr))
 ]
 
 @exercise[#:tag "my-let"]{Recall that @racket[define-syntax-rule] does
-no validation; it may be given @svar[id] arguments that aren't
+no validation; it may be given @svar[var-id] arguments that aren't
 identifiers. Explore what happens when you misuse the macro. Find two
 expressions---misuses of @racket[my-let]---that cause different syntax
 errors to be reported by @racket[lambda]. Find a misuse of
@@ -655,7 +716,15 @@ form. Here's the syntax:
          (my-cond clause ... maybe-else-clause)
          #:grammar ([clause [test-expr answer-expr]]
                     [maybe-else-clause (code:line)
-                                       [else answer-expr]])]{@~}
+                                       [else answer-expr]])]{
+
+The @racket[my-cond] form tries each clause in order; it evaluates the
+@racket[test-expr] and if the result is a true value, it returns the
+value of the corresponding @racket[answer-expr]. If no
+@racket[test-expr] evaluates to a true value, the result is the
+@racket[answer-expr] of the @racket[else] clause, if it is present, or
+@racket[(void)] otherwise.
+}
 
 Note the two kinds of clauses: only the last clause of the
 @racket[mycond] expression can be an @racket[else] clause.  The empty
@@ -705,11 +774,19 @@ syntax of @racket[my-case]:
          (my-case val-expr clause ... maybe-else-clause)
          #:grammar ([clause [(datum ...) result-expr]]
                     [maybe-else-clause (code:line)
-                                       [else result-expr]])]{@~}
+                                       [else result-expr]])]{
+
+The @racket[my-case] form evaluates @racket[val-expr] and finds the
+first clause with a @racket[datum] that is @racket[equal?] to the
+value of @racket[val-expr]; the macro's result is the value of that
+clause's @racket[result-expr]. If no clause has a matching
+@racket[datum], the result is the @racket[else] clause's
+@racket[result-expr], if present, or @racket[(void)] otherwise.
+}
 
 Here's a first (bad) attempt at writing @racket[my-case]. Take a
 minute and look at it before you continue reading. See if you can find
-the problem(s).
+the problem (or problems).
 
 @racketblock[
 (define-syntax my-case-v0
@@ -718,10 +795,10 @@ the problem(s).
      (void)]
     [(my-case-v0 val [else result-expr])
      result-expr]
-    [(my-case-v0 val [(datum ...) result-expr] . more-clauses)
+    [(my-case-v0 val [(datum ...) result-expr] clause ...)
      (if (member val '(datum ...))
          result-expr
-         (my-case-v0 val . more-clauses))]))
+         (my-case-v0 val clause ...))]))
 ]
 
 What's wrong with this macro?
@@ -842,6 +919,17 @@ expected expansion. You may need to adjust the expansion to make it
 easier for a macro to produce. Use helper functions to implement
 complex run-time behavior, and use helper macros to implement complex
 syntactic transformations.
+
+For every expression argument to a macro, consider that expression's
+static and dynamic treatment. A macro can put an expression in the
+scope of variable bindings---an expression's environment is its
+primary form of static context. Dynamic treatment includes determining
+whether an expression is evaluated, the number of times it is
+evaluated, and the order in which it is evaluated. A macro can also
+evalute an expression in a modified dynamic context---for example,
+within an exception handler or with different parameter values
+installed via @racket[parameterize].
+
 
 @; ============================================================
 @(close-eval the-eval)
