@@ -128,6 +128,9 @@ use @racket[e1] and @racket[e2] as expressions.
          (if var e2 #f))]))
 ]
 
+@lesson{Use @racket[syntax-parse] and syntax-class annotations on
+pattern variables to validate a macro's arguments.}
+
 @exercise{Add syntax validation to @racket[iflet] from
 @exercise-ref["iflet"] by rewriting it to use @racket[syntax-parse].}
 
@@ -137,7 +140,8 @@ use @racket[e1] and @racket[e2] as expressions.
 discovered. Which of the misuses are now rejected due to syntax
 validation? Which are not?
 
-The solution is discussed in the next section, @secref["valid-cs"].
+The solution to this exercise is discussed in the next section,
+@secref["valid-cs"].
 }
 
 
@@ -190,8 +194,8 @@ code between the pattern and the template.
     [(_ ([var:id rhs:expr] ...) body:expr)
      (let loop ([vars (syntax->list #'(var ...))]
                 [seens null])
-       ;; vars is list of variables to check
-       ;; seens is prefix of variables already seen
+       (code:comment "vars is list of variables to check")
+       (code:comment "seens is prefix of variables already seen")
        (when (pair? vars)
          (when (for/or ([seen (in-list seens)])
                  (bound-identifier=? (car vars) seen))
@@ -236,7 +240,7 @@ it. Racket has a function called @racket[check-duplicate-identifier]
 that finds duplicate identifiers using
 @racket[bound-identifier=?]. And @racket[syntax-parse] offers a
 @racket[#:fail-when] clause that replaces the call to
-@racket[raise-syntax-error]. Here is the simpler version of the macro:
+@racket[raise-syntax-error]. Here is the shorter version of the macro:
 
 @racketblock+eval[#:eval the-eval
 (define-syntax (my-let stx)

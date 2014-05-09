@@ -130,7 +130,7 @@ transformations.
 
 Not every term in a program matching a macro's pattern is rewritten
 (``expanded'').  Macros are rewritten only in certain
-contexts---essentially, contexts where expression or definition may
+contexts---essentially, contexts where expressions or definitions may
 appear. For example, if @racket[assert] is the macro defined above,
 then the following occurrences of @racket[assert] are @emph{not} valid
 uses of the macro:
@@ -398,9 +398,9 @@ behavior.
       (get-output-string out))))
 ]
 
-The benefit of factoring out the parameterization is twofold: it
-minimizes the size of the expanded code, and it allows you to test the
-helper function @racket[capture-output-fun].
+The benefit of factoring out the dynamic part is twofold: it minimizes
+the size of the expanded code, and it allows you to test the helper
+function @racket[capture-output-fun].
 
 @lesson{Keep the code introduced by a macro to a minimum. Rely on
 helper functions to implement complex dynamic behavior.}
@@ -459,7 +459,7 @@ Bad idea; would make things more complicated if the test did fail.
 @;{TODO exercise: delay, make-promise, force}
 
 @exercise{Every macro you've written (or rewritten) in this section
-desugars to a function applied to one or more expressions with
+produces a function applied to one or more expressions with
 @racket[lambda] wrapped around them. In which cases is the macro
 worthwhile, and in which cases would it be better to define a function
 instead and let users write the @racket[lambda]s themselves?
@@ -559,7 +559,7 @@ list of functions to the auxiliary function:
 expansion is legal.}
 
 @exercise{Write @racket[my-and] and @racket[my-or] macros that use
-ellipses to take arbitrary numbers of expressions.
+ellipses to take any number of expressions.
 
 @;{
 ;; Solution:

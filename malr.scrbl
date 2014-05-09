@@ -72,18 +72,7 @@ Note: this section might need forward references to Phases section
 in more detail later).
 
 @; ------------------------------------------------------------
-@bold{Intermediate Macrology: Phases}
-
-Compile-time helper functions, modules, begin-for-syntax, phases,
-require for-{syntax,template}.
-
-The Why of Phases.
-
-syntax templates, phases, env catalog
-
-
-@; ------------------------------------------------------------
-@bold{Intermediate Macrology: Under the Hood}
+@bold{Intermediate Macrology: Syntax Objects}
 
 Below the pattern-matching abstractions: @racket[syntax-e],
 @racket[datum->syntax], and @racket[quote-syntax].
@@ -94,6 +83,17 @@ containing expressions.
 Source information.
 
 Syntax properties.
+
+
+@; ------------------------------------------------------------
+@bold{Intermediate Macrology: Phases}
+
+Compile-time helper functions, modules, begin-for-syntax, phases,
+require for-{syntax,template}.
+
+The Why of Phases.
+
+syntax templates, phases, env catalog
 
 
 @; ------------------------------------------------------------
