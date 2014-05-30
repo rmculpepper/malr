@@ -26,18 +26,19 @@ We can use @racket[define-syntax-rule] to define simple macros. A
 @racket[define-syntax-rule] definition consists of two parts: a
 pattern and a template. The pattern describes what uses of the macros
 look like, and the template is used to construct the term that the
-macro is rewritten to. Identifiers occuring in the pattern are called
-pattern variables; the terms that they match from the macro use are
-substituted into the template when the macro is rewritten.
+macro is rewritten to. The pattern must start with the macro name;
+other identifiers occuring in the pattern are called pattern
+variables, and the terms that they match from the macro use are
+substituted into the template when the macro is rewritten. The pattern
+variables are essentially the ``arguments'' of the macro.
 
 The first step is to write down an example of what a use of the macro
 should look like and what code that macro use should correspond
-to. Sometimes you can get away with a broad sketch of an example---and
-with simple pattern-based macros, the example sketch might be the
-macro definition itself! But other times---especially if you get
-stuck---it is helpful to be concrete.
+to. Sometimes you can get away with a broad sketch of an example;
+other times---especially if you get stuck---it is helpful to be
+concrete.
 
-The @racket[assert] macro should be used like
+The @racket[assert] macro should be used like this:
 
 @racketblock[
 (assert _expression)
@@ -58,8 +59,8 @@ This use should behave as if we had written
 ]
 
 We can't (yet) actually make the macro create the exact string above,
-but we can instead make it generate code that will produce the right
-error at run time, with the help of the @racket[quote] form and
+but we can instead make it generate code that produces the right error
+at run time, with the help of the @racket[quote] form and
 @racket[error]'s built in formatting capabilities:
 
 @racketblock[
@@ -82,15 +83,15 @@ So we write the macro as follows:
     (error 'assert "assertion failed: ~s" (quote expr))))
 ]
 
-When we use a macro like
+Whenever the macro expander encounters a use of the macro, like this:
 
 @racketblock[
 (assert (>= (length ls) 1))
 ]
 
-the macro expander substitutes the argument @racket[(>= (length ls)
-1)] for every occurrence of the pattern variable @racket[expr] in the
-macro definition's template---including the occurrence within the
+it substitutes the argument @racket[(>= (length ls) 1)] for every
+occurrence of the pattern variable @racket[expr] in the macro
+definition's template---including the occurrence within the
 @racket[quote] form:
 
 @racketblock[
@@ -117,9 +118,9 @@ the result of the expression. (Hint: use @racket[begin0].)}
 
 A macro is a rewrite rule attached to an identifier, called the macro
 name, and it only rewrites terms matching its pattern, which must be a
-parenthesized pattern starting with the macro name. A macro cannot be
-used to define arbitrary rewriting rules over existing forms; for
-example, the following transformation is not a macro:
+parenthesized term starting with the macro name. A macro cannot be
+used to define arbitrary rewriting rules over existing syntactic
+forms; for example, the following transformation is not a macro:
 
 @racketblock[(if (not e1) e2 e3) ==> (if e1 e3 e2)]
 
@@ -129,25 +130,32 @@ will discuss how to extend the power of macros to more general
 transformations.
 
 Not every term in a program matching a macro's pattern is rewritten
-(``expanded'').  Macros are rewritten only in certain
-contexts---essentially, contexts where expressions or definitions may
-appear. For example, if @racket[assert] is the macro defined above,
-then the following occurrences of @racket[assert] are @emph{not} valid
-uses of the macro:
+(``expanded'').  Macros are rewritten only in certain contexts, called
+@deftech{expansion contexts}---essentially, contexts where expressions
+or definitions may appear. For example, if @racket[assert] is the
+macro defined above, then the following occurrences of @racket[assert]
+are @emph{not} uses of the macro:
 
-@racketblock[
-(let ((assert (> 1 2))) ___)
-(cond [assert (odd? 4)] [else ___])
-'(assert #f)
+@itemlist[
+@item{@racket[(let ((assert (> 1 2))) ___)]}
+@item{@racket[(cond [assert (odd? 4)] [else ___])]}
+@item{@racket['(assert #f)]}
 ]
 
 The first occurrence of @racket[assert] is in a @racket[let]-binding;
 @racket[assert] is interpreted as a variable name to bind to the value
 of @racket[(> 1 2)]. In the second line, the @racket[cond] form treats
 @racket[assert] and @racket[(odd? 4)] as separate expressions, and the
-use of @racket[assert] by itself is a syntax error. In the final
-example, the @racket[assert] occurs as part of a @racket[quote]d
-constant.
+use of @racket[assert] by itself is a syntax error (the use does not
+match @racket[assert]'s pattern). In the final example, the
+@racket[assert] occurs as part of a @racket[quote]d constant.
+
+Macros are expanded ``outermost-first,'' in contrast to nested
+function calls, which are evaluated ``innermost-first.'' The
+outermost-first expansion order is necessary because the macro
+expander only knows the expansion contexts of primitive syntactic
+forms; it must expand away the outer macros so that it knows what
+inner terms need to be expanded.
 
 
 @; ============================================================
@@ -164,9 +172,10 @@ returns that value; otherwise, it returns the value of
 ]
 
 If @racket[e1] is a simple expression like @racket[#t], this
-definition will work just fine, but if is a complex expression that
-produces a true value, it will be evaluated twice. Worse, if it
-contains side-effects, the side-effects will be performed twice. 
+definition will work just fine, but if is a complex expression
+involving macros, the macro expander must expand it twice. If it
+evaluates to a true value, the evaluation happens twice. Worse, if it
+contains side-effects, the side-effects are performed twice.
 
 @lesson{A macro template should contain at most one reference to an
 expression argument.}
@@ -200,12 +209,15 @@ variable. Might this use of @racket[x] interfere with a use of
 
 For example, consider this use of the macro:
 
-@racketblock[
+@interaction[#:eval the-eval
 (let ([x 5])
   (or2 (even? x) (odd? x)))
 ]
 
-If we do this expansion by hand, we would expect to get the following:
+That makes sense; @racket[5] is certainly either even or odd.
+
+If we expand @racket[or2] by hand, however, we might expect to get the
+following:
 
 @interaction[#:eval the-eval
 (let ([x 5])
@@ -390,6 +402,7 @@ behavior.
 @racketblock+eval[#:eval the-eval
 (define-syntax-rule (capture-output e)
   (capture-output-fun (lambda () e)))
+
 (code:comment "capture-output-fun : (-> Any) -> String")
 (define (capture-output-fun thunk)
   (let ([out (open-output-string)])
