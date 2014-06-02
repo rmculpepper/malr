@@ -141,3 +141,36 @@ Full expansion, analysis, and transformation (instrumentation). In
 macro w/ local-expand; in run-time tool w/ expand.
 
 (refer back to monolithic/microlithic/trampoline)
+
+@; ------------------------------------------------------------
+@bold{Languages}
+
+Two ways of embedding language X in Racket:
+
+@itemlist[#:style 'ordered
+@item{@racketblock[(Racket) expr ::= .... ALT X]
+      X forms are Racket macros. X grammar must not collide with Racket grammar.}
+@item{@racketblock[(Racket) expr ::= .... ALT (begin-X X)]
+      X forms are not Racket macros. X grammar can collide with Racket
+      grammar. Can have separate @racket[begin-X] forms for different
+      interpretations/behaviors of X fragments (eg for regular
+      expressions: match vs enumerate).}
+]
+
+In (1), if @racket[X ::= .... ALT expr] also, then it's not a language,
+it's probably just a library or a data type.
+
+(1) works most naturally with compositional translations. (2) can
+handle non-compositional translation, but can also do compositional
+via trampoline style.
+
+Can also have hybrid style (3?) where every X form, when used in
+Racket context, implicitly does @racket[begin-X] with self inside.
+
+Other languages notes:
+
+@racket[#%module-begin]
+
+namespace mangagement: subtracting Racket bindings, renaming, etc
+
+custom macro expanders, @racket[syntax-local-value] vs @racket[static]

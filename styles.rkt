@@ -12,6 +12,7 @@
          declare-keyword
          ___
          ==>
+         ALT
          tech/reference
          tech/guide
          lesson
@@ -39,6 +40,9 @@
 
 (define-syntax ___
   (make-element-id-transformer (lambda _ #'(racketvarfont "___"))))
+
+(define-syntax ALT
+  (make-element-id-transformer (lambda _ #'(elem "|"))))
 
 ;; ----
 
