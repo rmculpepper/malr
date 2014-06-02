@@ -13,12 +13,6 @@
 @; ============================================================
 @section[#:tag "todo-topics"]{More Topics to Cover}
 
-@;{
-TODO
-- solutions to selected exercises
-}
-
-
 @; ------------------------------------------------------------
 @bold{Basic macrology}
 
@@ -130,6 +124,11 @@ Monolithic vs microlithic macros. Trampoline style macros.
 
 Applicable structs and macros that act as expressions as well as
 something else (eg struct names).
+
+template tricks: @racket[template], ellipsis-escaping, etc
+
+macro-defining macros, using @racket[make-X-transformer] to prevent
+code explosion
 
 
 @; ------------------------------------------------------------

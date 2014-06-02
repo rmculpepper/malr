@@ -4,6 +4,7 @@
           (for-label racket/base racket/match rackunit))
 
 @(define the-eval (make-base-eval))
+@(the-eval '(require (only-in racket/base [quote QUOTE])))
 
 @title[#:tag "basic" #:version ""]{Basic Macrology}
 @author["Ryan Culpepper" "Claire Alvis"]
@@ -65,12 +66,12 @@ at run time, with the help of the @racket[quote] form and
 
 @racketblock[
 (unless (>= (length ls) 1)
-  (error 'assert "assertion failed: ~s" (quote (>= (length ls) 1))))
+  (error 'assert "assertion failed: ~s" (QUOTE (>= (length ls) 1))))
 ]
 
 @lesson{Don't fixate on the exact code you first write down for the
 macro's example expansion. Often, you must change it slightly to make
-it easier for the macro to produce. In particular...}
+it easier for the macro to produce.}
 
 @lesson{It's often simpler to produce an expression that does a
 computation at run time than to do the computation at compile time.}
@@ -80,7 +81,7 @@ So we write the macro as follows:
 @racketblock+eval[#:eval the-eval
 (define-syntax-rule (assert expr)
   (unless expr
-    (error 'assert "assertion failed: ~s" (quote expr))))
+    (error 'assert "assertion failed: ~s" (QUOTE expr))))
 ]
 
 Whenever the macro expander encounters a use of the macro, like this:
@@ -161,13 +162,13 @@ inner terms need to be expanded.
 @; ============================================================
 @section[#:tag "basic-or2"]{Auxiliary Variables and Hygiene}
 
-Suppose we want a macro @racket[or2] that expects two expressions
+Suppose we want a macro @racket[my-or2] that expects two expressions
 @racket[e1] and @racket[e2]. If @racket[e1] produces a true value, it
 returns that value; otherwise, it returns the value of
-@racket[e2]. Here is a first attempt at defining of @racket[or2]:
+@racket[e2]. Here is a first attempt at defining of @racket[my-or2]:
 
 @racketblock[
-(define-syntax-rule (or2 e1 e2)
+(define-syntax-rule (my-or2 e1 e2)
   (if e1 e1 e2))
 ]
 
@@ -184,7 +185,7 @@ So instead we should evaluate @racket[e1] first and save the result in
 a temporary variable @racket[x]:
 
 @racketblock+eval[#:eval the-eval
-(define-syntax-rule (or2 e1 e2)
+(define-syntax-rule (my-or2 e1 e2)
   (let ([x e1])
     (if x x e2)))
 ]
@@ -192,32 +193,32 @@ a temporary variable @racket[x]:
 If we try this macro, it seems to work as we expect:
 
 @interaction[#:eval the-eval
-(or2 #f #f)
-(or2 #t #f)
-(or2 5 7)
-(or2 #t (/ 1 0))
+(my-or2 #f #f)
+(my-or2 #t #f)
+(my-or2 5 7)
+(my-or2 #t (/ 1 0))
 ]
 
-Notice that in the final example, @racket[or2] returns @racket[#t]
+Notice that in the final example, @racket[my-or2] returns @racket[#t]
 without evaluating @racket[(/ 1 0)], which would have raised an
-error. In other words, @racket[or2] ``short-circuits'' the evaluation
+error. In other words, @racket[my-or2] ``short-circuits'' the evaluation
 of its second argument.
 
 One cause for concern is the use of @racket[x] as an auxiliary
 variable. Might this use of @racket[x] interfere with a use of
-@racket[x] in the expressions we give to @racket[or2]?
+@racket[x] in the expressions we give to @racket[my-or2]?
 
 For example, consider this use of the macro:
 
 @interaction[#:eval the-eval
 (let ([x 5])
-  (or2 (even? x) (odd? x)))
+  (my-or2 (even? x) (odd? x)))
 ]
 
 That makes sense; @racket[5] is certainly either even or odd.
 
-If we expand @racket[or2] by hand, however, we might expect to get the
-following:
+If we expand @racket[my-or2] by hand, however, we might expect to get
+the following:
 
 @interaction[#:eval the-eval
 (let ([x 5])
@@ -230,7 +231,7 @@ wanted!
 
 @interaction[#:eval the-eval
 (let ([x 5])
-  (or2 (even? x) (odd? x)))
+  (my-or2 (even? x) (odd? x)))
 ]
 
 That is, the occurrence of @racket[x] in @racket[(odd? x)] refers to
@@ -335,7 +336,7 @@ So far, we've seen a few things that a macro can do with an expression
 argument. It can use its value (as in @racket[assert]); it turn it
 into a datum using @racket[quote]; it can extend the environment the
 expression is evaluated in; and it can decide whether or not to
-evaluate it (as in the short-circuiting @racket[or2]).
+evaluate it (as in the short-circuiting @racket[my-or2]).
 
 Another thing a macro can do is affect the @emph{dynamic context} an
 expression is evaluated in. For now, we'll use @tech/guide{parameters}
@@ -572,7 +573,8 @@ list of functions to the auxiliary function:
 expansion is legal.}
 
 @exercise{Write @racket[my-and] and @racket[my-or] macros that use
-ellipses to take any number of expressions.
+ellipses to take any number of expressions. (Do @emph{not} use Racket's
+@racket[and] or @racket[or] forms in your solution.)
 
 @;{
 ;; Solution:
@@ -580,8 +582,8 @@ ellipses to take any number of expressions.
   (my-or-fun (list (lambda () e) ...)))
 (define (my-or-fun thunks)
   (if (pair? thunks)
-      (or2 ((car thunks))
-           (my-or-fun (cdr thunks)))
+      (my-or2 ((car thunks))
+              (my-or-fun (cdr thunks)))
       #f))
 ;; likewise for my-and
 }
@@ -809,7 +811,7 @@ the problem (or problems).
     [(my-case-v0 val [else result-expr])
      result-expr]
     [(my-case-v0 val [(datum ...) result-expr] clause ...)
-     (if (member val '(datum ...))
+     (if (member val '(@#,(racket datum) ...))
          result-expr
          (my-case-v0 val clause ...))]))
 ]
@@ -850,9 +852,9 @@ Here's a fixed version of the macro. I use the suffix @racket[-pv] for
 private variable.
 
 @racketblock[
-(define-syntax-rule (my-case val-expr . clauses)
+(define-syntax-rule (my-case val-expr clause ...)
   (let ([v val-expr])
-    (my-case* v . clauses)))
+    (my-case* v clause ...)))
 (code:line)
 (define-syntax my-case*
   (syntax-rules (else)
@@ -860,10 +862,10 @@ private variable.
      (void)]
     [(my-case* val-pv [else result-expr])
      result-expr]
-    [(my-case* val-pv [(datum ...) result-expr] . more-clauses)
-     (if (member val-pv '(datum ...))
+    [(my-case* val-pv [(datum ...) result-expr] clause ...)
+     (if (member val-pv '(@#,(racket datum) ...))
          result-expr
-         (my-case val-pv . more-clauses))]))
+         (my-case val-pv clause ...))]))
 ]
 
 Note that the only way to get a private variable is to create one or
@@ -872,15 +874,15 @@ to get one from a trusted source. If the helper macro,
 could no longer trust that its @racket[val-pv] argument was in fact a
 private variable.
 
-@exercise[#:tag "minimatch1"]{Write a macro @racket[minimatch1] with
-the following syntax:
+@exercise[#:tag "minimatch1" #:stars 1]{Write a macro
+@racket[minimatch1] with the following syntax:
 
 @defform[#:link-target? #f
          #:literals (cons quote)
          (minimatch1 val-expr pattern result-expr)
          #:grammar
          ([pattern variable-id
-                   (@#,(racket quote) datum)
+                   (QUOTE datum)
                    (cons first-pattern rest-pattern)])]{
 
 The @racket[minimatch1] macro should act like @racket[match]
@@ -891,8 +893,8 @@ produced by @racket[val-expr] does not match the @racket[pattern],
 raise an error.
 }}
 
-@exercise[#:tag "minimatch"]{Write a macro @racket[minimatch] with the
-following syntax:
+@exercise[#:tag "minimatch" #:stars 1]{Write a macro
+@racket[minimatch] with the following syntax:
 
 @defform[#:link-target? #f
          #:literals (cons quote _)
@@ -900,7 +902,7 @@ following syntax:
          #:grammar
          ([clause [pattern result-expr]]
           [pattern variable-id
-                   (@#,(racket quote) datum)
+                   (QUOTE datum)
                    (cons first-pattern rest-pattern)])]{
 
 The @racket[minimatch] macro should act like @racket[match] restricted

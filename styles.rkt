@@ -12,6 +12,7 @@
          declare-keyword
          ___
          ==>
+         QUOTE
          ALT
          tech/reference
          tech/guide
@@ -40,6 +41,9 @@
 
 (define-syntax ___
   (make-element-id-transformer (lambda _ #'(racketvarfont "___"))))
+
+(define-syntax QUOTE
+  (make-element-id-transformer (lambda _ #'(racketkeywordfont "quote"))))
 
 (define-syntax ALT
   (make-element-id-transformer (lambda _ #'(elem "|"))))
@@ -70,7 +74,7 @@
 (define exercise-counter 1)
 (define exercise-tags (make-hash))
 
-(define (exercise #:tag [tag #f] . pre-content)
+(define (exercise #:stars [stars 0] #:tag [tag #f] . pre-content)
   (define exnum (begin0 exercise-counter (set! exercise-counter (add1 exercise-counter))))
   (define maybe-soln-link
     (make-delayed-element
@@ -83,7 +87,11 @@
            (elem "")))
      (lambda () "")
      (lambda () "")))
-  (define header (bold "Exercise" ~ (number->string exnum) maybe-soln-link ": "))
+  (define stars-elem
+    (if (>= stars 1)
+        (smaller ~ "(" (make-string stars (integer->char 9733)) ")")
+        (elem)))
+  (define header (bold "Exercise" ~ (number->string exnum) stars-elem maybe-soln-link ": "))
   (define header* (if tag (make-target-element #f header (make-exercise-tag tag)) header))
   (when tag (hash-set! exercise-tags tag exnum))
   (apply nested header* pre-content))
