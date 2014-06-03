@@ -416,7 +416,7 @@ The benefit of factoring out the dynamic part is twofold: it minimizes
 the size of the expanded code, and it allows you to test the helper
 function @racket[capture-output-fun].
 
-@lesson{Keep the code introduced by a macro to a minimum. Rely on
+@lesson{Keep the code introduced by a macro to a minimum. Use
 helper functions to implement complex dynamic behavior.}
 
 @exercise{Rewrite the @racket[handle] and @racket[forever] macros so
@@ -744,12 +744,12 @@ value of the corresponding @racket[answer-expr]. If no
 Note the two kinds of clauses: only the last clause of the
 @racket[mycond] expression can be an @racket[else] clause.  The empty
 line in the definition of the @svar[maybe-else-clause] nonterminal
-means that the term might be absent. So our recursive macro will have
+means that the term might be absent. So our recursive macro must have
 two base cases.
 
 We can recognize @racket[else] by including @racket[else] it in the
 macro's literals list; then uses of @racket[else] in a pattern are not
-pattern variables, but instead only match other occurrences of that
+pattern variables, but instead match only other occurrences of that
 identifier.
 
 @racketblock[
@@ -767,7 +767,7 @@ identifier.
 
 @exercise{Extend @racket[my-cond] with @racket[=>] clauses as in
 Racket's @racket[cond] form. Test your macro thoroughly to make sure
-you put the macro's patterns in the right order! Try the clauses in a
+you put the macro's patterns in the right order. Try the clauses in a
 bad order and discover what happens when you use the macro.}
 
 @exercise{Extend @racket[my-cond] so that normal clauses can have
@@ -820,11 +820,9 @@ What's wrong with this macro?
 
 The problem is that the first argument, @racket[val], is an
 @emph{expression}, and the final template of the macro contains
-multiple references to it. The expression will be duplicated. (Note
-that I've dropped the @racket[-expr] suffix I usually use for
-expression-valued pattern variables, in an attempt to mislead you.)
-One solution would be to create a @racket[let]-bound variable in the
-third template. That would be adequate to fix this issue.
+multiple references to it. The expression is duplicated.  One solution
+would be to create a @racket[let]-bound variable in the third
+template. That would be adequate to fix this issue.
 
 There's another, although less disastrous, peculiarity about this
 macro. If the @racket[my-case-v0] expression has no clauses (or none
@@ -833,7 +831,7 @@ evaluated at all!  But we expect that expression to always be
 evaluated; it is a ``strict'' subexpression of @racket[my-case].
 
 In cases like these, it is useful to evaluate the strict expressions
-once, at the ``beginning'' of the macro, and store them in
+once, at the ``beginning'' of the macro, and store their values in
 @deftech{private variables}. If there are multiple strict
 expressions, syntax ergonomics suggests they should be evaluated in
 order. If there is validation to be done on the strict expression
@@ -879,18 +877,18 @@ private variable.
 
 @defform[#:link-target? #f
          #:literals (cons quote)
-         (minimatch1 val-expr pattern result-expr)
+         (minimatch1 val-expr mm-pattern result-expr)
          #:grammar
-         ([pattern variable-id
-                   (QUOTE datum)
-                   (cons first-pattern rest-pattern)])]{
+         ([mm-pattern variable-id
+                      (QUOTE datum)
+                      (cons first-mm-pattern rest-mm-pattern)])]{
 
 The @racket[minimatch1] macro should act like @racket[match]
 restricted to a single clause and restricted to the pattern grammar
 above. The @racket[result-expr] should be evaluated in the scope of
-all of the @racket[variable-id]s in the @racket[pattern]. If the value
-produced by @racket[val-expr] does not match the @racket[pattern],
-raise an error.
+all of the @racket[variable-id]s in the @racket[mm-pattern]. If the
+value produced by @racket[val-expr] does not match the
+@racket[mm-pattern], raise an error.
 }}
 
 @exercise[#:tag "minimatch" #:stars 1]{Write a macro
@@ -900,17 +898,17 @@ raise an error.
          #:literals (cons quote _)
          (minimatch val-expr clause ...)
          #:grammar
-         ([clause [pattern result-expr]]
-          [pattern variable-id
-                   (QUOTE datum)
-                   (cons first-pattern rest-pattern)])]{
+         ([clause [mm-pattern result-expr]]
+          [mm-pattern variable-id
+                      (QUOTE datum)
+                      (cons first-mm-pattern rest-mm-pattern)])]{
 
 The @racket[minimatch] macro should act like @racket[match] restricted
-to the pattern grammar above. Each @racket[pattern] is tried in order
+to the pattern grammar above. Each @racket[mm-pattern] is tried in order
 until one matches; then the corresponding @racket[result-expr] is
-evaluated in the scope of all of the @racket[pattern]'s
+evaluated in the scope of all of the @racket[mm-pattern]'s
 @racket[variable-id]s. If the value produced by @racket[val-expr] does
-not match any @racket[pattern], raise an error.
+not match any @racket[mm-pattern], raise an error.
 }
 
 Hint: Implementing pattern matching generally involves recurring
