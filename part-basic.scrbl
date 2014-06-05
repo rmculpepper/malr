@@ -876,7 +876,7 @@ private variable.
 @racket[minimatch1] with the following syntax:
 
 @defform[#:link-target? #f
-         #:literals (cons quote)
+         #:literals (cons QUOTE)
          (minimatch1 val-expr mm-pattern result-expr)
          #:grammar
          ([mm-pattern variable-id
@@ -895,7 +895,7 @@ value produced by @racket[val-expr] does not match the
 @racket[minimatch] with the following syntax:
 
 @defform[#:link-target? #f
-         #:literals (cons quote _)
+         #:literals (cons QUOTE _)
          (minimatch val-expr clause ...)
          #:grammar
          ([clause [mm-pattern result-expr]]

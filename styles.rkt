@@ -6,7 +6,8 @@
          scribble/manual
          scribble/decode
          scribble/racket
-         scribble/core)
+         scribble/core
+         (for-label racket/base))
 (provide schemekw
          schemevar
          declare-keyword
@@ -14,6 +15,7 @@
          ==>
          QUOTE
          ALT
+         STAR
          tech/reference
          tech/guide
          lesson
@@ -22,6 +24,7 @@
          exercise
          exercise-number
          exercise-ref
+         exercise-number-ref
          solution-section)
 
 (define-syntax-rule (schemekw x) (schemekeywordfont (symbol->string 'x)))
@@ -43,7 +46,7 @@
   (make-element-id-transformer (lambda _ #'(racketvarfont "___"))))
 
 (define-syntax QUOTE
-  (make-element-id-transformer (lambda _ #'(racketkeywordfont "quote"))))
+  (make-element-id-transformer (lambda _ #'(racket quote))))
 
 (define-syntax ALT
   (make-element-id-transformer (lambda _ #'(elem "|"))))
@@ -77,24 +80,29 @@
 (define (exercise #:stars [stars 0] #:tag [tag #f] . pre-content)
   (define exnum (begin0 exercise-counter (set! exercise-counter (add1 exercise-counter))))
   (define maybe-soln-link
-    (make-delayed-element
-     (lambda (renderer part info)
-       ;; does the solution tag exist?
-       (define soln?
-         (and tag (resolve-get/tentative part info `(part ,(make-solution-tag tag)))))
-       (if soln?
-           (elem ~ (seclink (make-solution-tag tag) (elem "[solution]")))
-           (elem "")))
-     (lambda () "")
-     (lambda () "")))
+    (traverse-element
+     (lambda (get put)
+       (define html? (memq 'html (get 'scribble:current-render-mode 'text)))
+       (make-delayed-element
+        (lambda (renderer part info)
+          ;; does the solution tag exist?
+          (define soln?
+            (and tag (resolve-get/tentative part info `(part ,(make-solution-tag tag)))))
+          (if (and soln? html?)
+              (elem ~ (seclink (make-solution-tag tag) (elem "[solution]")))
+              (elem "")))
+        (lambda () "")
+        (lambda () "")))))
   (define stars-elem
     (if (>= stars 1)
-        (smaller ~ "(" (make-string stars (integer->char 9733)) ")")
+        (elem #|smaller|# ~ "(" (make-string stars (integer->char 9733)) ")")
         (elem)))
   (define header (bold "Exercise" ~ (number->string exnum) stars-elem maybe-soln-link ": "))
   (define header* (if tag (make-target-element #f header (make-exercise-tag tag)) header))
   (when tag (hash-set! exercise-tags tag exnum))
   (apply nested header* pre-content))
+
+(define STAR (make-string 1 (integer->char 9733)))
 
 (define (exercise-number tag)
   (or (hash-ref exercise-tags tag #f)
@@ -104,19 +112,16 @@
   (define exnum (exercise-number tag))
   (make-link-element #f (elem "Exercise" ~ (number->string exnum)) (make-exercise-tag tag)))
 
+(define (exercise-number-ref tag)
+  (define exnum (exercise-number tag))
+  (make-link-element #f (elem (number->string exnum)) (make-exercise-tag tag)))
+
 (define (make-exercise-tag tag)
   `(exercise ,(doc-prefix #f #f tag)))
 
 (define-syntax-rule (solution-section #:tag tag)
   (section #:tag (make-solution-tag tag)
            "Solution for " (exercise-ref tag)))
-
-#|
-(define (solution #:tag tag . pre-content)
-  (define header (bold "Solution for " (exercise-ref tag) ": "))
-  (define header* (make-target-element #f header (make-solution-tag tag)))
-  (apply nested header* pre-content))
-|#
 
 (define (make-solution-tag tag)
   (string-append "exercise-solution-" tag))
