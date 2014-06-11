@@ -11,7 +11,7 @@ and functional programming. @other-doc['(lib
 @hyperlink["http://www.ccs.neu.edu/home/matthias/HtDP2e/"]{How to
 Design Programs, 2nd edition} is good for the latter.
 
-Most topics have have exercises that reinforce and expand on their
+Most topics have exercises that reinforce and expand on their
 lessons. Try to do every exercise. If you don't, you're skipping
 learning opportunities. When an exercise has a linked solution page,
 use it to check your solution; the solution pages sometimes have
