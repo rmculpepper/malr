@@ -12,10 +12,10 @@ and functional programming. @other-doc['(lib
 Design Programs, 2nd edition} is good for the latter.
 
 Most topics have have exercises that reinforce and expand on their
-lessons. Try to do every exercise. If you don't, you're skipping
-learning opportunities. When an exercise has a linked solution page,
-use it to check your solution; the solution pages sometimes have
-important comments that aren't repeated in the main text.
+lessons. Try to do every exercise. When an exercise has a linked
+solution page, use it to check your solution; the solution pages
+sometimes have important comments that aren't repeated in the main
+text.
 
 Difficult exercises are marked with one or more stars (@STAR); they
 may require extra thought and care. It is okay to skip these and
