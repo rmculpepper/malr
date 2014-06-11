@@ -28,7 +28,7 @@ We can use @racket[define-syntax-rule] to define simple macros. A
 pattern and a template. The pattern describes what uses of the macros
 look like, and the template is used to construct the term that the
 macro is rewritten to. The pattern must start with the macro name;
-other identifiers occuring in the pattern are called pattern
+other identifiers occurring in the pattern are called pattern
 variables, and the terms that they match from the macro use are
 substituted into the template when the macro is rewritten. The pattern
 variables are essentially the ``arguments'' of the macro.
@@ -464,7 +464,7 @@ failed\n"}; and if either expression raises an error, it prints
     (unless (equal? (actual-thunk) (expected-thunk))
       (printf "test ~s failed\n" test-name))))
 
-Note: test-name is strict. Could evalute the test name expr lazily?
+Note: test-name is strict. Could evaluate the test name expr lazily?
 Bad idea; would make things more complicated if the test did fail.
 }
 }
@@ -939,7 +939,7 @@ scope of variable bindings---an expression's environment is its
 primary form of static context. Dynamic treatment includes determining
 whether an expression is evaluated, the number of times it is
 evaluated, and the order in which it is evaluated. A macro can also
-evalute an expression in a modified dynamic context---for example,
+evaluate an expression in a modified dynamic context---for example,
 within an exception handler or with different parameter values
 installed via @racket[parameterize].
 

@@ -71,7 +71,7 @@ reader notation for @racket[(@#,racket[syntax] @#,svar[term])].}
 
 ]
 
-Aside from these differences, the essense of the macro---the pattern
+Aside from these differences, the essence of the macro---the pattern
 and template---is the same as the @racket[define-syntax-rule]
 version. But we've added an @emph{annotation} to the @racket[var]
 pattern variable via the @racket[#:declare] keyword, that constrains
