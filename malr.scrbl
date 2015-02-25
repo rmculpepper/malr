@@ -9,6 +9,7 @@
 @include-section["part-prelim.scrbl"]
 @include-section["part-basic.scrbl"]
 @include-section["part-intro-validate.scrbl"]
+@include-section["part-communication.scrbl"]
 @include-section["solutions.scrbl"]
 
 #|
