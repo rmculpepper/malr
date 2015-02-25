@@ -716,6 +716,8 @@ Inspect the macro definition and confirm that in each case, the scope
 of one of the bound identifiers consists of the following right-hand
 side expressions and the body expression.
 
+@;{ QUIBBLE: want (#%expression body-expr), prevent definitions }
+
 @exercise{Rewrite @racket[my-and] and @racket[my-or] as recursive
 macros.}
 
@@ -832,22 +834,23 @@ evaluated; it is a ``strict'' subexpression of @racket[my-case].
 
 In cases like these, it is useful to evaluate the strict expressions
 once, at the ``beginning'' of the macro, and store their values in
-@deftech{private variables}. If there are multiple strict
-expressions, syntax ergonomics suggests they should be evaluated in
-order. If there is validation to be done on the strict expression
-arguments (if a particular type is expected, for example), it should
-also be done at this time. The rest of the macro's work can be done by
-a helper macro.
+@tech{private variables}. If there are multiple strict expressions,
+syntax ergonomics suggests they should be evaluated in order. If there
+is validation to be done on the strict expression arguments (if a
+particular type is expected, for example), it should also be done at
+this time. The rest of the macro's work can be done by a helper macro.
 
-A private variable is a variable created by a macro and passed to its
-helper macros but not exposed to the user. In particular, it can be
-duplicated freely, because an expression known to be a variable cannot
-have side effects. In addition, if the macro does not mutate the
-variable (nor any of the macro's helpers), then it can be trusted to
-maintain its value, and not be concurrently mutated by another thread.
+By @deftech{private variable} I mean a variable created by a macro and
+passed to its helper macros but not exposed to the user. In
+particular, it can be duplicated freely, because a variable, unlike an
+arbitrary expression, is known not to have side effects. In addition,
+if the macro does not mutate the variable (and nor do any of the
+macro's helpers), then it can be trusted to maintain its value, and
+not be concurrently mutated by another thread.
 
-Here's a fixed version of the macro. I use the suffix @racket[-pv] for
-private variable.
+@;{ QUIBBLE: identifier does not imply variable reference }
+
+Here's a fixed version of the macro.
 
 @racketblock[
 (define-syntax-rule (my-case val-expr clause ...)
@@ -856,20 +859,20 @@ private variable.
 (code:line)
 (define-syntax my-case*
   (syntax-rules (else)
-    [(my-case* val-pv)
+    [(my-case* var)
      (void)]
-    [(my-case* val-pv [else result-expr])
+    [(my-case* var [else result-expr])
      result-expr]
-    [(my-case* val-pv [(datum ...) result-expr] clause ...)
-     (if (member val-pv '(@#,(racket datum) ...))
+    [(my-case* var [(datum ...) result-expr] clause ...)
+     (if (member var '(@#,(racket datum) ...))
          result-expr
-         (my-case val-pv clause ...))]))
+         (my-case var clause ...))]))
 ]
 
 Note that the only way to get a private variable is to create one or
 to get one from a trusted source. If the helper macro,
 @racket[my-case*], were exported from its module, for example, then it
-could no longer trust that its @racket[val-pv] argument was in fact a
+could no longer trust that its @racket[var] argument was in fact a
 private variable.
 
 @exercise[#:tag "minimatch1" #:stars 1]{Write a macro
