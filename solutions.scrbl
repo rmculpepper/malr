@@ -143,19 +143,19 @@ resulting in syntax errors from @racket[let].
 @racketblock[
 (define-syntax minimatch1*
   (syntax-rules (cons quote)
-    [(minimatch1* v-pv (@#,racket[quote] datum) result-expr)
-     (if (equal? v-pv (@#,racket[quote] datum))
+    [(minimatch1* v (@#,racket[quote] datum) result-expr)
+     (if (equal? v (@#,racket[quote] datum))
          result-expr
          (error 'minimatch1 "match failed"))]
-    [(minimatch1* v-pv (cons first-pattern rest-pattern) result-expr)
-     (if (pair? v-pv)
-         (let ([first-var (car v-pv)]
-               [rest-var (cdr v-pv)])
+    [(minimatch1* v (cons first-pattern rest-pattern) result-expr)
+     (if (pair? v)
+         (let ([first-var (car v)]
+               [rest-var (cdr v)])
            (minimatch1* first-var first-pattern
                         (minimatch1* rest-var rest-pattern result-expr)))
          (error 'minimatch1 "match failed"))]
-    [(minimatch1* v-pv variable-id result-expr)
-     (let ([variable-id v-pv])
+    [(minimatch1* v variable-id result-expr)
+     (let ([variable-id v])
        result-expr)]))
 ]
 
