@@ -11,6 +11,46 @@
 @include-section["part-intro-validate.scrbl"]
 @include-section["solutions.scrbl"]
 
+#|
+Chapter 2: Procedural Macros
+- What is a macro (revisited?)
+  - a name bound via define-syntax (etc) to a compile-time procedure
+- need phase separation
+- how to use phases (briefly)
+- syntax-parse and syntax/#' (by example)
+2.0 Preamble: What is a macro?
+2.1 Redo existing macros w/ basic syntax-parse, #', syntax-e
+2.2 Basic syntax api: with-syntax, syntax->list, raise-syntax-error, syntax->datum
+2.3 Syntax APIs: source locations
+  - consuming (eg assert, test-case, etc)
+  - produce/propagate, syntax/loc -- note: unreliable
+...
+2.4 Phases in more detail: require for-syntax (syntax/stx?), begin-for-syntax
+2.5 (skippable) Low-level macro writing (cf Fear of Macros?)
+
+Chapter 3: Using syntax-parse
+- stxclass annotation for error reporting
+- mix in context-sensitive checks
+- stxclasses and attributes: macro helper computation
+- backtracking
+- hit major features: head patterns, ....
+
+Chapter 4: Macros that Communicate
+- syntax-local-value
+  - prop:procedure, new props = interfaces
+- compile-time state
+  - and the phase reset, idempotency
+
+Macros as grammar extensions (or somewhere earlier?)
+
+Chapter 5: Extensible Extensions
+- via syntax-local-value
+- via local-expand
+  - integrity protection: tainting/dye-packs
+
+|#
+
+
 @; ============================================================
 @section[#:tag "todo-topics"]{More Topics to Cover}
 
