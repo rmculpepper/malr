@@ -1,9 +1,8 @@
 #lang scribble/manual
-@(require scribble/eval
-          "styles.rkt"
+@(require "styles.rkt"
           (for-label racket/base racket/match))
 
-@title[#:tag "prelim" #:version "" #:style '(unnumbered)]{Preliminaries}
+@title[#:tag "prelim" #:version ""]{Preliminaries}
 
 This guide assumes that you have a basic working knowledge of Racket
 and functional programming. @other-doc['(lib
