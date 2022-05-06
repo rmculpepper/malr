@@ -1,6 +1,6 @@
 #lang scribble/manual
 @(require scribble/eval
-          "styles.rkt"
+          "../styles.rkt"
           (for-label racket/base racket/match rackunit))
 
 @(define the-eval (make-base-eval))

@@ -7,8 +7,6 @@
 @(local-table-of-contents #|#:style 'immediate-only|#)
 
 @include-section["part-prelim.scrbl"]
-@include-section["part-htdm.scrbl"]
-@include-section["part-basic.scrbl"]
-@include-section["solutions.scrbl"]
+@include-section["part-expr.scrbl"]
 
 @include-section["old/old.scrbl"]

@@ -8,13 +8,15 @@
          scribble/racket
          scribble/core
          scribble/html-properties
+         scribble/example
          (for-label racket/base))
 (provide schemekw
          schemevar
          declare-keyword
          ___
          ==>
-         QUOTE
+         Quote
+         Syntax
          ALT
          STAR
          tech/reference
@@ -46,8 +48,11 @@
 (define-syntax ___
   (make-element-id-transformer (lambda _ #'(racketvarfont "___"))))
 
-(define-syntax QUOTE
+(define-syntax Quote
   (make-element-id-transformer (lambda _ #'(racket quote))))
+
+(define-syntax Syntax
+  (make-element-id-transformer (lambda _ #'(racket syntax))))
 
 (define-syntax ALT
   (make-element-id-transformer (lambda _ #'(elem "|"))))
