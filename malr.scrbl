@@ -7,6 +7,6 @@
 @(local-table-of-contents #|#:style 'immediate-only|#)
 
 @include-section["part-prelim.scrbl"]
-@include-section["part-expr.scrbl"]
+@include-section["part-intro.scrbl"]
 
 @include-section["old/old.scrbl"]

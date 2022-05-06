@@ -236,9 +236,9 @@ away the outer macros so that it knows what inner terms need to be expanded.
 @section[#:tag "intro-lexical"]{Proper Lexical Scoping}
 
 Given that @racket[assert] just expands into uses of @racket[unless],
-@racket[error], and so on, perhaps we could interfere with the intended behavior
-of @racket[assert] by locally shadowing names it depends on --- @racket[error],
-for example. But if we try it, we can see it has no effect:
+@racket[error], and so on, perhaps we could interfere with its intended behavior
+by locally shadowing names it depends on --- @racket[error], for example. But if
+we try it, we can see it has no effect:
 
 @examples[#:eval the-eval #:label #f
 (eval:error
@@ -251,10 +251,8 @@ The @racket[assert] macro is @emph{properly lexically scoped}, or
 template are resolved in the environment where the macro was defined, not the
 environment where it is used. This is analogous to the behavior you would get if
 @racket[assert] were a function: functions automatically close over their free
-variables.
-
-This is one aspect of @emph{hygienic macro expansion}. We'll talk about the
-other in FIXME-REF.
+variables. In the case of macros, it is syntax objects that contain information
+about the syntax's @emph{lexical context}.
 
 In other words, the following ``naive'' code is the wrong explanation for the
 expansion of this @racket[assert] example:
@@ -264,14 +262,19 @@ expansion of this @racket[assert] example:
   (unless (even? (length ls))
     (error 'assert "assertion failed: ~s" (quote (even? (length ls))))))
 ]
-Instead, each term introduced by @racket[assert] carries some @emph{lexical
-context} information with it; in practice, it's a component of the syntax object that
-represents the term. Here's a better way to think of the expansion:
+Instead, each term introduced by @racket[assert] carries some lexical context
+information with it. Here's a better way to think of the expansion:
 @racketblock[
 (let ([error void])
   (@#,elem{@racket[unless]@superscript{m}} (even? (length ls))
     (@#,elem{@racket[error]@superscript{m}} 'assert "assertion failed: ~s" (@#,elem{@racket[quote]@superscript{m}} (even? (length ls))))))
 ]
+The lexical contexts of @racket[error] and @elem{@racket[error]@superscript{m}}
+prevents the use-site local binding of @racket[error] from capturing the
+reference @elem{@racket[error]@superscript{m}}.
+
+This example illustrates one half of @emph{hygienic macro expansion}. We'll talk
+about the other half in FIXME-REF.
 
 
 @; ------------------------------------------------------------
