@@ -185,7 +185,55 @@ specification, examples, implementation strategy, implementation, and testing.
 
 
 @; ------------------------------------------------------------
-@section[#:tag "intro-lexical"]{Macros are Properly Lexically Scoped}
+@section[#:tag "intro-order"]{Expansion Contexts and Expansion Order}
+
+Consider the shape of @racket[assert]:
+
+@codeblock{
+;; (assert Expr) : Expr
+}
+
+The first @racket[Expr] is for the macro's argument. The second @racket[Expr],
+though, says that @racket[assert] forms a new kind of expression. But this also
+points to a limitation of macros: @racket[assert] is @emph{only} a new kind of
+expression.
+
+Not every term in a program matching a macro's pattern is expanded (rewritten).
+Macros are expanded only in certain positions, called @emph{expansion
+contexts}---essentially, contexts where expressions or definitions may
+appear. For example, if @racket[assert] is the macro defined above, then the
+following occurrences of @racket[assert] do @emph{not} count as uses of the
+macro, and they don't get expanded:
+@itemlist[
+
+@item{@racket[(let ((assert (> 1 2))) 'ok)] --- This occurrence of
+@racket[assert] is in a @racket[let]-binding; @racket[assert] is interpreted as
+a variable name to bind to the value of @racket[(> 1 2)]. In Racket, names like
+@racket[lambda], @racket[if], and @racket[assert] can be shadowed just like
+variables can!}
+
+@item{@racket[(cond [assert (odd? 4)] [else 'nope])] --- This is a syntax
+error. The @racket[cond] form treats @racket[assert] and @racket[(odd? 4)] as
+separate expressions, and the use of @racket[assert] as an expression by itself
+is a syntax error (the use does not match @racket[assert]'s pattern).}
+
+@item{@racket['(assert #f)] --- This @racket[assert] occurs as part of a
+@racket[quote]d constant.}
+
+]
+
+Note that @racket[let] and @racket[cond] are also macros. So we cannot even tell
+whether a term involving @racket[assert] is used as an expression until we
+understand the shapes of the surrounding macros. In particular, the Racket macro
+expander expands macros in ``outermost-first'' order, in contrast to nested
+function calls, which are evaluated ``innermost-first.'' The outermost-first
+expansion order is necessary because the macro expander only knows the shapes
+(and thus the expansion contexts) of primitive syntactic forms; it must expand
+away the outer macros so that it knows what inner terms need to be expanded.
+
+
+@; ------------------------------------------------------------
+@section[#:tag "intro-lexical"]{Proper Lexical Scoping}
 
 Given that @racket[assert] just expands into uses of @racket[unless],
 @racket[error], and so on, perhaps we could interfere with the intended behavior
@@ -224,6 +272,7 @@ represents the term. Here's a better way to think of the expansion:
   (@#,elem{@racket[unless]@superscript{m}} (even? (length ls))
     (@#,elem{@racket[error]@superscript{m}} 'assert "assertion failed: ~s" (@#,elem{@racket[quote]@superscript{m}} (even? (length ls))))))
 ]
+
 
 @; ------------------------------------------------------------
 @section[#:tag "intro-impl"]{More Implementations of @racket[assert]}

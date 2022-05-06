@@ -15,7 +15,7 @@ four steps:
 @item{Write a specification.}
 @item{Write examples that can be turned into tests.}
 @item{Choose an implementation strategy.}
-@item{Finish the implementation.}
+@item{Finish the implementation and check it.}
 
 ]
 
