@@ -7,8 +7,8 @@
 This guide assumes that you have a basic working knowledge of Racket
 and functional programming. @other-doc['(lib
 "scribblings/guide/guide.scrbl")] is sufficient for the former, and
-@hyperlink["http://www.ccs.neu.edu/home/matthias/HtDP2e/"]{How to
-Design Programs, 2nd edition} is good for the latter.
+@hyperlink["https://htdp.org/"]{How to Design Programs, 2nd edition}
+is good for the latter.
 
 Most topics have have exercises that reinforce and expand on their
 lessons. Try to do every exercise. When an exercise has a linked

@@ -7,6 +7,7 @@
          scribble/decode
          scribble/racket
          scribble/core
+         scribble/html-properties
          (for-label racket/base))
 (provide schemekw
          schemevar
@@ -125,3 +126,12 @@
 
 (define (make-solution-tag tag)
   (string-append "exercise-solution-" tag))
+
+#;
+;; Doesn't fully work, no way to avoid div wrapper on summary (I think)
+(define (accordion summary . pre-flow)
+  (compound-paragraph
+   (style #f (list (alt-tag "details")))
+   (cons (paragraph (style #f (list (alt-tag "summary")))
+                    (decode-content (list summary)))
+         (decode-flow pre-flow))))
