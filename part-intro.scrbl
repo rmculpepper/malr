@@ -6,9 +6,8 @@
 
 @(define the-eval (make-base-eval))
 @(the-eval '(require (only-in racket/base [quote Quote] [syntax Syntax])
-                     (for-syntax racket/base racket/syntax
-                                 (only-in racket/base [quote Quote] [syntax Syntax])
-                                 syntax/parse syntax/macro-testing)))
+                     (for-syntax (only-in racket/base [quote Quote] [syntax Syntax]))
+                     (for-syntax racket/base syntax/parse)))
 
 @; ============================================================
 @title[#:tag "intro" #:version ""]{Introduction}

@@ -12,6 +12,8 @@
          (for-label racket/base))
 (provide schemekw
          schemevar
+         shape
+         type
          declare-keyword
          ___
          ==>
@@ -33,6 +35,9 @@
 
 (define-syntax-rule (schemekw x) (schemekeywordfont (symbol->string 'x)))
 (define-syntax-rule (schemevar x) (schemevarfont (symbol->string 'x)))
+
+(define (shape . content) (apply racketcommentfont content))
+(define (type . content) (apply racketcommentfont content))
 
 (define-syntax-rule (define-declare-X declare-X formatter)
   (... (define-syntax-rule (declare-X id ...)
