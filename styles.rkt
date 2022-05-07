@@ -18,6 +18,7 @@
          Quote
          Syntax
          ALT
+         !
          STAR
          tech/reference
          tech/guide
@@ -56,6 +57,9 @@
 
 (define-syntax ALT
   (make-element-id-transformer (lambda _ #'(elem "|"))))
+
+(define-syntax !
+  (make-element-id-transformer (lambda _ #'(racketparenfont "."))))
 
 ;; ----
 
