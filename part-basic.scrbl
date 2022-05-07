@@ -39,7 +39,7 @@ Here are some examples:
 (my-when (even? 5) (printf "even!\n"))  (code:comment "expect no print")
 ]
 Here's the implementation:
-@examples[#:eval the-eval #:label #f
+@examples[#:eval the-eval #:no-result
 (define-syntax my-when
   (syntax-parser
     [(_ condition:expr result:expr)
@@ -96,7 +96,7 @@ For example:
 (my-and-let (assoc 'z ls) entry (cadr entry)) (code:comment "expect #f")
 ]
 Here is an implementation:
-@examples[#:eval the-eval #:label #f
+@examples[#:eval the-eval #:no-result
 (define-syntax my-and-let
   (syntax-parser
     [(_ x:id e1:expr e2:expr)
@@ -141,7 +141,7 @@ following definition:
 This implementation is @emph{bad} because @racket[e1] occurs in the scope of
 @racket[x], even though it isn't supposed to. Here's another version:
 
-@examples[#:eval the-eval #:label #f
+@examples[#:eval the-eval #:no-result
 ;; (my-and-let x:Id Expr Expr{x}) : Expr
 (define-syntax my-and-let
   (syntax-parser
@@ -180,7 +180,7 @@ Here is one shape we could write for @racket[my-match-pair]:
 }
 
 Here's an implementation:
-@examples[#:eval the-eval #:label #f
+@examples[#:eval the-eval #:no-result
 (define-syntax my-match-pair
   (syntax-parser
     [(_ pair:expr x:id xs:id result:expr)
@@ -237,7 +237,7 @@ contract check is performed at run time.) Finally, use the @racket[c]
 contract-wrapped version of the expression. Here's the contract-checked version
 of the macro:
 
-@examples[#:eval the-eval #:label #f
+@examples[#:eval the-eval #:no-result
 (code:comment "(my-match-pair Expr[(cons T1 T2)] x:Id xs:Id Expr{x:T1,xs:T2}[R]) : Expr[R]")
 (define-syntax my-match-pair
   (syntax-parser
@@ -248,7 +248,7 @@ of the macro:
            result))]))
 ]
 Here's the implementation using @racket[#:declare] instead of @racket[~var]:
-@examples[#:eval the-eval #:label #f
+@examples[#:eval the-eval #:no-result
 ;; (my-match-pair Expr[(cons T1 T2)] x:Id xs:Id Expr{x:T1,xs:T2}[R]) : Expr[R]
 (define-syntax my-match-pair
   (syntax-parser

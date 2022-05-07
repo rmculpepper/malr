@@ -83,7 +83,7 @@ performs the following transformation:
 
 Before we define the macro, we must import the machinery we'll use in its
 implementation:
-@examples[#:eval the-eval #:label #f
+@examples[#:eval the-eval #:no-result
 (require (for-syntax racket/base syntax/parse))
 ]
 The @racket[for-syntax] modifier indicates that we need these imports to perform
@@ -94,7 +94,7 @@ which is a pattern-matching utility for syntax objects.
 
 Here is the macro definition:
 
-@examples[#:eval the-eval #:label #f
+@examples[#:eval the-eval #:no-result
 (code:comment "(assert Expr) : Expr")
 (define-syntax assert
   (syntax-parser
@@ -287,7 +287,7 @@ section introduces a few of them.
 A @racket[(Syntax _template)] expression can be written as @racket[#'_template]
 instead. That is, @litchar{#'} is a reader macro for @racket[syntax]. So the
 @racket[assert] macro can be defined as follows:
-@examples[#:eval the-eval #:label #f
+@examples[#:eval the-eval #:no-result
 (code:comment "(assert Expr) : Expr")
 (define-syntax assert
   (syntax-parser
@@ -298,7 +298,7 @@ instead. That is, @litchar{#'} is a reader macro for @racket[syntax]. So the
 
 The @racket[syntax-parser] form is basically a combination of @racket[lambda]
 and @racket[syntax-parse]. So the following definition is equivalent:
-@examples[#:eval the-eval #:label #f
+@examples[#:eval the-eval #:no-result
 (code:comment "(assert Expr) : Expr")
 (define-syntax assert
   (lambda (stx)
@@ -309,7 +309,7 @@ and @racket[syntax-parse]. So the following definition is equivalent:
 ]
 The @racket[define-syntax] form supports ``function definition'' syntax like
 @racket[define] does, so the following is also allowed:
-@examples[#:eval the-eval #:label #f
+@examples[#:eval the-eval #:no-result
 (code:comment "(assert Expr) : Expr")
 (define-syntax (assert stx)
   (syntax-parse stx
@@ -325,7 +325,7 @@ time. We can define the transformer as a separate compile-time function using
 @racket[begin-for-syntax] (to enter the compile-time @emph{phase}) and
 @racket[define]. Then we can simply use a reference to the function as the
 implementation of @racket[assert].
-@examples[#:eval the-eval #:label #f
+@examples[#:eval the-eval #:no-result
 (begin-for-syntax
   (code:comment "assert-transformer : Syntax[(_ Expr)] -> Syntax[Expr]")
   (define (assert-transformer stx)
@@ -384,7 +384,7 @@ All of these pattern-matching DSLs are simply aids to writing macros; they
 aren't necessary. It's possible to write the macro by directly using the syntax
 object API. Here's one version:
 
-@examples[#:eval the-eval #:label #f
+@examples[#:eval the-eval #:no-result
 (define-syntax assert
   (lambda (stx)
     (define (bad-syntax) (raise-syntax-error #f "bad syntax" stx))
