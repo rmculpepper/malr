@@ -22,6 +22,8 @@
          ALT
          !
          STAR
+         expr_
+
          tech/reference
          tech/guide
          lesson
@@ -65,6 +67,9 @@
 
 (define-syntax !
   (make-element-id-transformer (lambda _ #'(racketparenfont "."))))
+
+(define-syntax expr_
+  (make-element-id-transformer (lambda _ #'(racketidfont "expr"))))
 
 ;; ----
 
