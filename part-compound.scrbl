@@ -149,8 +149,7 @@ value to represent a true result.
             void))]))
 ]
 
-Here is another:
-
+Here is another, using a recursive run-time helper function:
 @examples[#:eval the-eval #:no-result
 (code:comment "(my-cond [Expr Expr] ...) : Expr")
 (define-syntax my-cond
@@ -158,10 +157,16 @@ Here is another:
     [(_ [condition:expr result:expr] ...)
      #'(my-cond-helper (list (lambda () condition) ...)
                        (list (lambda () result) ...))]))
+(code:comment "my-cond-helper : (Listof (-> Any)) (Listof (-> X)) -> X")
+(code:comment "PRE: condition-thunks and result-thunks have the same length")
+(define (my-cond-helper condition-thunks result-thunks)
+  (if (pair? condition-thunks)
+      (if ((car condition-thunks))
+          ((car result-thunks))
+          (my-cond-helper (cdr condition-thunks)
+                          (cdr result-thunks)))
+      (void)))
 ]
-
-where @racket[my-cond-helper] is a function that processes the two list of
-thunks in parallel.
 
 Lesson: Many macros can be decomposed into two parts: a compile-time part that
 adds @racket[lambda] wrappers to handle scoping and delayed evaluation, and a
