@@ -11,5 +11,6 @@
 @include-section["part-shapes.scrbl"]
 @include-section["part-basic.scrbl"]
 @include-section["part-compound.scrbl"]
+@include-section["part-enum.scrbl"]
 
-@include-section["old/old.scrbl"]
+@;@include-section["old/old.scrbl"]
