@@ -1,5 +1,6 @@
-#lang racket/base
-(require (for-syntax racket/base)
+#lang at-exp racket/base
+(require racket/runtime-path
+         (for-syntax racket/base)
          (for-syntax syntax/parse))
 (require scribble/basic
          ;; scribble/struct
@@ -7,6 +8,7 @@
          scribble/decode
          scribble/racket
          scribble/core
+         scribble/base
          scribble/html-properties
          scribble/example
          (for-label racket/base))
@@ -33,7 +35,8 @@
          exercise-number
          exercise-ref
          exercise-number-ref
-         solution-section)
+         solution-section
+         cc-footer)
 
 (define-syntax-rule (schemekw x) (schemekeywordfont (symbol->string 'x)))
 (define-syntax-rule (schemevar x) (schemevarfont (symbol->string 'x)))
@@ -154,3 +157,23 @@
    (cons (paragraph (style #f (list (alt-tag "summary")))
                     (decode-content (list summary)))
          (decode-flow pre-flow))))
+
+(define license-link "https://creativecommons.org/licenses/by-nc-nd/4.0/")
+(define big-licence-img "https://licensebuttons.net/l/by-nc-nd/4.0/88x31.png")
+(define small-license-img "https://i.creativecommons.org/l/by-nc-nd/4.0/80x15.png")
+(define-runtime-path local-license-img "static/by-nc-nd-4.0-80x15.png")
+(define license-name "Attribution-NonCommercial-NoDerivatives 4.0 International")
+
+
+(define (cc-footer)
+  (paragraph
+   (style #f (list (attributes
+                    '((style . "padding: 4em 0")))))
+   (cc-elem)))
+
+(define (cc-elem)
+  (define llink-style (style #f (list (attributes '((rel . "license"))))))
+  (define (llink e) (hyperlink #:style llink-style license-link e))
+  @elem{@llink[@image[local-license-img]{Creative Commons License}]
+        This work by Ryan Culpepper is licensed under a
+        @llink[@elem{@license-name License}].})

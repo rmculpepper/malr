@@ -14,3 +14,6 @@
 @include-section["part-enum.scrbl"]
 
 @;@include-section["old/old.scrbl"]
+
+
+@(cc-footer)
