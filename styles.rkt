@@ -25,6 +25,7 @@
          !
          STAR
          expr_
+         fail_
 
          tech/reference
          tech/guide
@@ -73,6 +74,8 @@
 
 (define-syntax expr_
   (make-element-id-transformer (lambda _ #'(racketidfont "expr"))))
+(define-syntax fail_
+  (make-element-id-transformer (lambda _ #'(racketidfont "fail"))))
 
 ;; ----
 
