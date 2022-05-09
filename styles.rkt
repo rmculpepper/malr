@@ -1,3 +1,6 @@
+;; Copyright 2022 Ryan Culpepper
+;; SPDX-License-Identifier: CC-BY-NC-ND-4.0
+
 #lang at-exp racket/base
 (require racket/runtime-path
          (for-syntax racket/base)

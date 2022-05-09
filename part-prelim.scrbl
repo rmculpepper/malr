@@ -1,3 +1,6 @@
+;; Copyright 2022 Ryan Culpepper
+;; SPDX-License-Identifier: CC-BY-NC-ND-4.0
+
 #lang scribble/manual
 @(require "styles.rkt"
           (for-label racket/base racket/match))
