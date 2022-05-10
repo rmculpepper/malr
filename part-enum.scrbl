@@ -5,13 +5,13 @@
 @(require (except-in scribble/eval examples)
           (only-in scribble/example examples)
           "styles.rkt"
-          (for-label racket/base syntax/parse racket/match syntax/macro-testing
+          (for-label racket/base syntax/parse syntax/datum racket/match syntax/macro-testing
                      racket/port rackunit))
 
 @(define the-eval (make-base-eval))
 @(the-eval '(require (only-in racket/base [quote Quote] [syntax Syntax])
                      rackunit syntax/macro-testing racket/port
-                     (for-syntax racket/base racket/syntax syntax/parse
+                     (for-syntax racket/base racket/syntax syntax/parse syntax/datum
                                  (only-in racket/base [quote Quote] [syntax Syntax]))))
 
 @; ============================================================
@@ -202,6 +202,10 @@ away by the compiler.
 
 @; FIXME: verify the compiler inlines all lambdas away
 
+
+@; ------------------------------------------------------------
+@subsection[#:tag "enum-codegen"]{Use a Code Generator Interface}
+
 Suppose, though, that we really wanted to produce more natural looking code,
 perhaps for readability. Here's a variation on the previous solution: Instead of
 exporting a syntax-valued attribute that takes a run-time failure continuation,
@@ -229,11 +233,24 @@ Here is the corresponding definition of @racket[my-cond]:
     [(_)
      #'(void)]
     [(_ c:cond-clause more ...)
-     ((attribute c.make-code) #'(my-cond more ...))]))
+     ((datum c.make-code) #'(my-cond more ...))]))
 ]
 The value of @racket[c.make-code] is not syntax, so we cannot use it in a syntax
-template. We use @racket[attribute] to get the attribute value (a function), and
+template. We use @racket[datum] to get the attribute value (a function), and
 apply it to syntax representing an expression handling the rest of the clauses.
+
+Here's another version of the macro that checks all of the clauses and
+then uses @racket[foldr] to process all of the code-generators:
+@examples[#:eval the-eval #:no-result
+(code:comment "(my-cond CondClause ...) : Expr")
+(define-syntax my-cond
+  (syntax-parser
+    [(_ c:cond-clause ...)
+     (foldr (lambda (make-code rec-expr)
+              (make-code rec-expr))
+            #'(void)
+            (datum (c.make-code ...)))]))
+]
 
 
 @; ----------------------------------------
