@@ -17,6 +17,10 @@
 @; ============================================================
 @title[#:tag "enum-shapes" #:version ""]{Enumerated Shapes}
 
+
+@; ------------------------------------------------------------
+@section[#:tag "enum-shapes-def"]{Defining Enumerated Shapes}
+
 In the previous section, we extracted the definition of @shape{CondClause} from
 the shape of the @racket[my-cond] macro, and we defined a syntax class
 @racket[cond-clause] corresponding to the shape.
@@ -71,11 +75,14 @@ what nested attributes are bound when the syntax class is used in a macro and
 how the nested attributes are interpreted.
 
 This mismatch is a fundamentally difficult issue to deal with, and in general
-there is no single right answer. Here are some of the options:
+there is no single right answer. The following sections explore some of the
+options.
 
-@section{Unify the Variants}
 
-@bold{Option 1: Find a way to unify the two variants into a single interface.}
+@; ----------------------------------------
+@subsection[#:tag "enum-unify"]{Unify the Variants}
+
+The goal is to find a way to unify the variants into a single interface.
 
 It is relatively straightforward to unify the two @shape{CondClause} variants
 into a single interface in this example. We can convert any clause of the
@@ -139,10 +146,10 @@ compiled code, with zero run-time overhead.
 
 
 
+@; ----------------------------------------
+@subsection[#:tag "enum-behavior"]{Find Common Behavior}
 
-@section{Unify the Behavior}
-
-@bold{Option 2: Shift more of the macro's behavior into the syntax class.}
+@; @bold{Option 2: Shift more of the macro's behavior into the syntax class.}
 
 If it is difficult to find a common interface for all of a syntax class's
 variants, one thing that can help is to move behavior from the macro to the
@@ -228,17 +235,155 @@ The value of @racket[c.make-code] is not syntax, so we cannot use it in a syntax
 template. We use @racket[attribute] to get the attribute value (a function), and
 apply it to syntax representing an expression handling the rest of the clauses.
 
-@section{Redo the Case Analysis}
 
-@bold{Option 3: Throw away the syntax class.}
+@; ----------------------------------------
+@subsection[#:tag "enum-again"]{Redo Case Analysis}
 
-FIXME
+On the other hand, sometimes it is easier to simply redo the case analysis in
+the macro. If we take that approach for @racket[my-cond], we could use the
+@racket[cond-clause] syntax class only for input validation and as internal
+documentation. In particular, we should declare that it exports no attributes:
 
-A variation on this option would be to keep the syntax class but remove its
-attributes and use it only for error checking in the public version of the
-macro, and then perform recursion and case analysis again in an internal version
-of the macro.
+@examples[#:eval the-eval #:no-result #:escape UNQUOTE
+(begin-for-syntax
+  (define-syntax-class cond-clause
+    #:attributes ()
+    (pattern [condition:expr result:expr])
+    (pattern [condition:expr #:apply get-result:expr])))
+]
+
+The following version of @racket[my-cond] checks the syntactic structure of all
+of its arguments, then expands into a recursive helper macro @racket[my-cond*],
+which performs the case analysis on each clause again:
+
+@examples[#:eval the-eval #:no-result
+(code:comment "(my-cond CondClause ...) : Expr")
+(define-syntax my-cond
+  (syntax-parser
+    [(_ c:cond-clause ...)
+     #'(my-cond* c ...)]))
+(code:comment "(my-cond* CondClause ...) : Expr")
+(define-syntax my-cond*
+  (syntax-parser
+    [(_)
+     #'(void)]
+    [(_ [condition:expr result:expr] more ...)
+     #'(if condition
+           result
+           (my-cond* more ...))]
+    [(_ [condition:expr #:apply get-result:expr] more ...)
+     #'(let ([condition-value condition])
+         (if condition-value
+             (get-result condition-value)
+             (my-cond* more ...)))]))
+]
+
 
 @; There are other options, see FIXME-REF
 
-@; FIXME: avoid overlapping shapes, or impose consistency, or impose order
+
+@; ------------------------------------------------------------
+@section[#:tag "enum-overlap"]{Designing Enumerated Syntax}
+
+When you design an enumerated syntax shape, you must avoid ambiguity; or if you
+cannot completely avoid it, you must manage it carefully. To elaborate, let's
+consider some alternative syntaxes for cond-clauses.
+
+For @shape{AltCondClauseV1}, let's generalize the simple form, so that the result
+is determined not by a single expression but by one or more body terms. And
+let's indicate the second form with the identifier @racket[apply] instead of the
+keyword @racket[#:apply].
+
+@codeblock{
+;; AltCondClauseV1 ::=
+;; | [Expr Body ...+]
+;; | [Expr apply Expr]
+}
+
+This syntax design is @emph{bad}, because there are two variants with different
+meanings that contain the same terms. In fact, every term that matches the
+second variant also matches the first.
+
+One could argue that a programmer is unlikely to simply write @racket[apply] at
+the beginning of a result body intending it to be evaluated as an expression. It
+would have no effect; its presence would be completely useless. Still,
+programmers regularly trip on ``out of the way'' inconsistencies, and it's a
+better habit to keep comfortable safety margins.
+
+Let's change the definition slightly so that instead of @racket[apply], we use
+the identifier @racket[=>] to indicate the second clause form:
+
+@codeblock{
+;; AltCondClauseV2 ::=
+;; | [Expr Body ...+]
+;; | [Expr => Expr]
+}
+
+This syntax design is okay; it is in fact the design Racket uses for
+@racket[cond] clauses. There are two crucial details, though. First, the
+@racket[=>] variant must be recognized not by the symbolic content of the
+@racket[=>] identifier, but by checking whether it is a reference to Racket's
+@racket[=>] binding. Second. Racket defines @racket[=>] as a macro that always
+signals a syntax error. So even though we can interpret @racket[=>] as an
+expression, it is never a @emph{valid} expression. In practice, we only care
+about avoiding overlaps with the set of valid expressions, so
+@shape{AltCondClauseV2} is okay.
+
+Both properties are needed to avoid ambiguity. If we checked for @racket[=>] as
+a symbol, then a programmer could define a local variable (or macro) named
+@racket[=>], which would then be a valid expression, so there would be
+overlap. And if @racket[=>] were a valid expression, that also creates an
+overlap. (That's the same as the @racket[apply] variant in
+@shape{AltCondClauseV1}.)
+
+Finally, although the shape is okay, we must be careful when writing the
+corresponding syntax patterns. Here is a first draft of the corresponding syntax
+class definition. We must declare @racket[=>] as a @emph{literal}; otherwise it
+would be treated as another pattern variable.
+
+@examples[#:eval the-eval #:no-result
+(begin-for-syntax
+  (define-syntax-class alt-cond-clause-v2
+    #:attributes (code) (code:comment "Expr[(-> Any) -> Any]")
+    #:literals (=>)
+    (pattern [condition:expr result:expr ...+]
+             #:with code ___)
+    (pattern [condition:expr => get-result:expr]
+             #:with code ___)))
+]
+
+The problem is that a clause term like @racket[[a => b]] matches the first
+pattern, and so the syntax class interprets it as a simple condition and
+result-body clause. That is, the same issue we dealt with earlier at the shape
+level shows up again at the syntax pattern level. It shows up again because even
+though @racket[=>] cannot be a valid expression, the @racket[expr] syntax class
+doesn't know that. This issue is not specific to syntax classes; it would also
+come up if we did the case analysis in the macro patterns.
+
+The solution involves two steps. First, reorder the patterns to put the
+@racket[=>] pattern first. Second, use @racket[~!] (``cut'') to commit to the
+first pattern after seeing @racket[=>]. Here is the code:
+
+@examples[#:eval the-eval #:no-result
+(begin-for-syntax
+  (define-syntax-class alt-cond-clause-v2
+    #:attributes (code) (code:comment "Expr[(-> Any) -> Any]")
+    #:literals (=>)
+    (pattern [condition:expr => ~! get-result:expr]
+             #:with code ___)
+    (pattern [condition:expr result:expr ...+]
+             #:with code ___)))
+]
+
+Without the @racket[~!], a term like @racket[[a => b c]] would be considered a
+valid instance of the second pattern, rather than an invalid instance of the
+first pattern. (Try it and see what happens!)
+
+The complexity of overlaps with expressions is one reason that keywords were
+introduced into Racket. Since both the @shape{Expr} shape and the @racket[expr]
+syntax class consider themselves completely disjoint from keywords, they avoid
+these issues completely. (A related issue does emerge when dealing with
+partly-expanded code, distinguishing definitions from expressions, for
+example. We'll talk about that later. FIXME-REF)
+
+@; also FIXME-REF for local-expand, eg define/public and public
