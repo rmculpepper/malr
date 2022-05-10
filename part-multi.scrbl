@@ -104,43 +104,6 @@ also still work.}
 ]
 
 @; ----------------------------------------
-@subsection[#:tag "multi-codegen"]{Use a Code Generator Interface}
-
-With the code generator interface, the new implementation simply involves two
-changes to the old implementation. We must change @racket[define-syntax-class]
-to @racket[define-splicing-syntax-class], and we must add the third variant as
-below. The definition of @racket[my-clause] itself does not change.
-
-@examples[#:eval the-eval #:no-result #:escape UNQUOTE
-(begin-for-syntax
-  (define-splicing-syntax-class cond-clause
-    #:attributes (make-code) (code:comment "Syntax[Expr] -> Syntax[Expr]")
-    (pattern [condition:expr result:expr]
-             #:attr make-code (lambda (fail-expr)
-                                #`(if condition result #,fail-expr)))
-    (pattern [condition:expr #:apply get-result:expr]
-             #:attr make-code (lambda (fail-expr)
-                                #`(let ([condition-value condition])
-                                    (if condition-value
-                                        (get-result condition-value)
-                                        #,fail-expr))))
-    (pattern (~seq #:do body:expr)
-             #:attr make-code (lambda (fail-expr)
-                                #`(let ()
-                                    body
-                                    #,fail-expr)))))
-(code:comment "(my-cond CondClause ...) : Expr")
-(define-syntax my-cond
-  (syntax-parser
-    [(_ c:cond-clause ...)
-     (foldr (lambda (make-code rec-expr)
-              (make-code rec-expr))
-            #'(void)
-            (datum (c.make-code ...)))]))
-]
-
-
-@; ----------------------------------------
 @subsection[#:tag "multi-redo-case"]{Redo Case Analysis}
 
 For the ``redo case analysis'' approach, we simply add a case to the private,
@@ -179,7 +142,88 @@ recursive macro:
 ]
 
 
+@; ----------------------------------------
+@subsection[#:tag "multi-codegen"]{Use a Code Generator Interface}
+
+With the code generator interface, the new implementation simply involves two
+changes to the old implementation. We must change @racket[define-syntax-class]
+to @racket[define-splicing-syntax-class], and we must add the third variant as
+below. The definition of @racket[my-clause] itself does not change.
+
+@examples[#:eval the-eval #:no-result #:escape UNQUOTE
+(begin-for-syntax
+  (define-splicing-syntax-class cond-clause
+    #:attributes (make-code) (code:comment "Syntax[Expr] -> Syntax[Expr]")
+    (pattern [condition:expr result:expr]
+             #:attr make-code (lambda (fail-expr)
+                                #`(if condition result #,fail-expr)))
+    (pattern [condition:expr #:apply get-result:expr]
+             #:attr make-code (lambda (fail-expr)
+                                #`(let ([condition-value condition])
+                                    (if condition-value
+                                        (get-result condition-value)
+                                        #,fail-expr))))
+    (pattern (~seq #:do body:expr)
+             #:attr make-code (lambda (fail-expr)
+                                #`(let ()
+                                    body
+                                    #,fail-expr)))))
+(code:comment "(my-cond CondClause ...) : Expr")
+(define-syntax my-cond
+  (syntax-parser
+    [(_ c:cond-clause ...)
+     (foldr (lambda (make-code rec-expr)
+              (make-code rec-expr))
+            #'(void)
+            (datum (c.make-code ...)))]))
+]
+
+
 @; ------------------------------------------------------------
 @section[#:tag "optional-shapes"]{Optional Shapes}
 
-This section is optional, so I decided not to write it.
+A common kind of multi-term shape is one that has two (or more variants), one of
+which consists of zero terms. A good naming convention for such shapes and
+syntax classes is to start them with ``maybe'' or ``optional''. For example, we
+could add an optional final @racket[#:else] clause to @racket[my-cond], like this:
+@codeblock{
+;; (my-cond CondClause ... MaybeFinalCondClause) : Expr
+}
+where @shape{MaybeFinalCondClause} is defined as follows:
+@codeblock{
+;; MaybeFinalCondClause ::= ε | #:else Expr
+}
+Here I've used @shape{ε} to represent zero terms.
+
+The corresponding syntax class for @shape{MaybeFinalCondClause} must be a
+splicing syntax class. The interpretation of the possible final clause is that
+it provides a condition-free result if none of the previous clauses were
+selected; if absent, the result is @racket[(void)]. So we can represent the
+interpretation with a single attribute holding an expression:
+@examples[#:eval the-eval #:no-result
+(begin-for-syntax
+  (define-splicing-syntax-class maybe-final-cond-clause
+    #:attributes (result) (code:comment "Expr")
+    (pattern (~seq)
+             #:with result #'(void))
+    (pattern (~seq #:else result:expr))))
+]
+
+Here is the macro, starting from the code-generation implementation above. The
+only changes are to the pattern and the use of @racket[#'fc.result] instead of
+@racket[#'(void)] in the call to @racket[foldr].
+
+@examples[#:eval the-eval #:no-result #:escape UNQUOTE
+(define-syntax my-cond
+  (syntax-parser
+    [(_ c:cond-clause ... fc:maybe-final-cond-clause)
+     (foldr (lambda (make-code rec-expr)
+              (make-code rec-expr))
+            #'fc.result
+            (datum (c.make-code ...)))]))
+]
+
+@;{
+To avoid ambiguity, we must check that @shape{CondClause} and
+@shape{MaybeFinalCondClause} don't overlap. They don't.
+}
