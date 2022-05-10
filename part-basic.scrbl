@@ -76,6 +76,42 @@ Here are the previous examples rephrased as tests:
 
 
 @; ------------------------------------------------------------
+@section[#:tag "shape:body"]{The Body Shape}
+
+The @shape{Body} shape is like @shape{Expr} --- it contains all terms except
+keywords --- except that it indicates that the term will be used in a body
+context, so definitions are allowed in addition to expressions.
+
+There is no distinct syntax class for @shape{Body}; just use @racket[expr].
+
+In practice, the @shape{Body} shape is used with ellipses; see
+@secref["compound-shapes"]. But we can make a version of @racket[my-when] that
+takes a single @shape{Body} term, even though it isn't idiomatic Racket
+syntax. Here is the shape:
+
+@codeblock{
+;; (my-when Expr Body) : Expr
+}
+
+Here is an example allowed by the new shape but not by the previous shape:
+@racketblock[
+(define n 37)
+(my-when (odd? n)
+  (begin (define q (quotient n 2)) (printf "q = ~s\n" q)))
+]
+
+Given the new shape, the previous implementation would be @emph{wrong}, since it
+does not place its second argument in a body context. Here is an updated
+implementation:
+@examples[#:eval the-eval #:no-result
+(define-syntax my-when
+  (syntax-parser
+    [(_ condition:expr result-body:expr)
+     #'(if condition (let () result-body) (void))]))
+]
+
+
+@; ------------------------------------------------------------
 @section[#:tag "basic-expr"]{The Id (Identifier) Shape}
 
 The @shape{Id} shape contains all identifiers.

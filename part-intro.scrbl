@@ -25,8 +25,8 @@ evaluates it, raising an error that includes the expression text if it does not
 evaluate to a true value. The result of the @racket[assert] expression itself is
 @racket[(void)].
 
-Clearly, @racket[assert] cannot be a function; a function cannot access the text
-of its arguments. It must be a macro.
+Clearly, @racket[assert] cannot be a function, because a function cannot access
+the text of its arguments. It must be a macro.
 
 We can specify the @emph{shape} of @racket[assert] as follows:
 @codeblock{
@@ -106,29 +106,43 @@ Here is the macro definition:
                (error 'assert "assertion failed: ~e" (Quote condition))))]))
 ]
 
-Here is a brief overview of the macro definition; later sections will provide
-more detailed explanations. The macro is defined using @racket[define-syntax],
-which takes the macro's name and a @emph{compile-time} expression for the
-macro's @emph{transformer} function. The transformer takes a syntax object
-representing the macro use and returns a syntax object for the macro's
-expansion. This transformer is implemented with @racket[syntax-parser], which
-takes a sequence of clauses consisting of a @emph{syntax pattern} and a
-@emph{result expression}. This macro's transformer has only one clause. The
-pattern @racket[(_ condition:expr)] says that after the macro name (typically
-represented by the wildcard pattern @racket[_]) the macro expects one
+Here is an overview of the macro definition:
+@itemlist[
+
+@item{The macro is defined using @racket[define-syntax], which takes the macro's
+name and a @emph{compile-time} expression for the macro's @emph{transformer}
+function. By ``compile-time expression'', I mean that the expression is
+evaluated at compile time using the @emph{compile-time environment}, which is
+distinct from the normal environment. We initialized the compile-time
+environment earlier with @racket[(require (for-syntax racket/base
+syntax/parse))].}
+
+@item{The transformer takes a syntax object representing the macro use and
+returns a syntax object for the macro's expansion. This transformer is
+implemented with @racket[syntax-parser], which takes a sequence of clauses
+consisting of a @emph{syntax pattern} and a @emph{result expression}. This
+macro's transformer has only one clause.}
+
+@item{The pattern @racket[(_ condition:expr)] says that after the macro name
+(typically represented by the wildcard pattern @racket[_]) the macro expects one
 expression, representing a ``condition''. The identifier @racket[condition] is a
 @emph{syntax pattern variable}; it is @emph{annotated} with the @emph{syntax
 class} @racket[expr]. If the clause's pattern matches the macro use, then its
 pattern variables are defined and available in @emph{syntax templates} in the
-clause's result expression. The @racket[syntax] form introduces a syntax
-template; it is similar to @racket[quasiquote] except that pattern variables do
-not need explicit @racket[unquote]s. (It also cooperates with ellipses and some
-other features; we'll talk about them later.) When the @racket[syntax]
-expression is evaluated, it produces a syntax object with the pattern variables
-in the template replaced with the terms matched from the macro use. Note that
-even the occurrence within the @racket[quote] term gets replaced. Pattern
-variable substitution happens before the @racket[quote] is interpreted, so a
-@racket[quote] in the template is treated like any other identifier.
+clause's result expression.}
+
+@item{The clause's result expression is a @racket[syntax] expression, which
+contains a @emph{syntax template}. It is similar to @racket[quasiquote] except
+that pattern variables do not need explicit @racket[unquote]s. (It also
+cooperates with ellipses and some other features; we'll talk about them later.)
+When the @racket[syntax] expression is evaluated, it produces a syntax object
+with the pattern variables in the template replaced with the terms matched from
+the macro use. Note that even the occurrence within the @racket[quote] term gets
+replaced --- pattern variable substitution happens before the @racket[quote] is
+interpreted, so a @racket[quote] in the template is treated like any other
+identifier.}
+
+]
 
 Finally, we should test the macro. I'll use @racketmodname[rackunit] for
 testing:
@@ -323,7 +337,7 @@ The @racket[define-syntax] form supports ``function definition'' syntax like
 
 A macro's transformer function is, in a sense just an ordinary Racket function,
 except that it exists at compile time. When we imported @racket[(for-syntax
-racket/base)] earlier, we have made the Racket language available at compile
+racket/base)] earlier, we made the Racket language available at compile
 time. We can define the transformer as a separate compile-time function using
 @racket[begin-for-syntax] (to enter the compile-time @emph{phase}) and
 @racket[define]. Then we can simply use a reference to the function as the
@@ -404,7 +418,7 @@ object API. Here's one version:
 ]
 
 Briefly, @racket[syntax->list] unwraps a syntax object one level and normalizes
-it to a list, if possible (the terms @racket[(a b c)] and @racket[(a . (b c))],
+it to a list, if possible (the terms @racket[(a b c)] and @racket[(a ! (b c))],
 while both ``syntax lists'', have different syntax object representations). It
 is built on top of the primitive operation @racket[syntax-e]. The
 @racket[quote-syntax] form is the primitive that creates a syntax object
