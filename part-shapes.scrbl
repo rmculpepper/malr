@@ -23,13 +23,13 @@ programs and their interpretation.
 @; ------------------------------------------------------------
 @section[#:tag "shapes-terms"]{Terms}
 
-Here is some Racket code:
+Consider the following Racket code:
 
 @racketblock[
-    (define (map f xs)
-      (cond [(pair? xs)
-             (cons (f (car xs)) (map f (cdr xs)))]
-            [(null? xs) '()]))
+(define (map f xs)
+  (cond [(pair? xs)
+         (cons (f (car xs)) (map f (cdr xs)))]
+        [(null? xs) '()]))
 ]
 
 The code is a tree of terms. A @deftech{term} is, roughly, an atom or a
@@ -54,11 +54,11 @@ The following is not a term:
 
 ]
 
-The following are terms and also occur in the program above, even though it
+The following are also terms that occur in the program above, even though it
 might not be immediately apparent:
 @itemlist[
 
-@item{@racket[(f xs)] --- That's because @racket[(map f xs)] is the same as
+@item{@racket[(f xs)] --- Because @racket[(map f xs)] is the same as
 @racket[(map ! (f xs))], which is also the same as @racket[(map ! (f ! (xs !
 ())))].}
 

@@ -46,10 +46,12 @@ patterns, and types. The implementation strategies are more specialized, but
 they are still informed by the shape of the macro inputs. The implementation
 language is Racket with @racketmodname[syntax/parse] and some other standard
 syntax libraries. Along the way, I cover some of the idioms and limitations of
-the programming model for macros: macros (usually) respects lexical scoping;
+the programming model for macros: macros (usually) respect lexical scoping;
 they must respect the ``phase'' separation between compile time and run time;
 they avoid @racket[eval]; they (usually) treats expressions as opaque; and so
 on.
+
+This section introduces the elements of macro design via a simple example macro.
 
 @; FIXME: transition
 
