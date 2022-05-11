@@ -148,13 +148,13 @@ the value of the first expression. Let's put that information in the shape of
 @racket[my-and-let]. It requires two changes:
 @itemlist[
 
-@item{Name the identifier so we can refer to it later. So instead of
-@shape{Id}, we write @shape{x:Id}. The name does not have to be the same as
+@item{Label the identifier so we can refer to it later. So instead of
+@shape{Id}, we write @shape{x:Id}. The label does not have to be the same as
 the name of the pattern variable, but it makes sense to use the same name here.}
 
 @item{Add an @emph{environment annotation} to the second @shape{Expr} indicating
-that it's in the scope of a variable whose name is whatever identifier
-@racket[x] is bound to: @shape{Expr{x}}.}
+that it's in the scope of a variable whose name is whatever actual identifier
+@racket[x] refers to: @shape{Expr{x}}.}
 
 ]
 
@@ -181,7 +181,7 @@ This implementation is @emph{bad} because @racket[e1] occurs in the scope of
 @racket[x], even though it isn't supposed to. Here's another version:
 
 @examples[#:eval the-eval #:no-result
-;; (my-and-let x:Id Expr Expr{x}) : Expr
+(code:comment "(my-and-let x:Id Expr Expr{x}) : Expr")
 (define-syntax my-and-let
   (syntax-parser
     [(_ x:id e1:expr e2:expr)
