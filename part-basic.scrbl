@@ -17,6 +17,9 @@
 @; ============================================================
 @title[#:tag "basic-shapes" #:version ""]{Basic Shapes}
 
+This section introduces the more important basic shapes for macro design.
+
+
 @; ------------------------------------------------------------
 @section[#:tag "shape:expr"]{The Expr (Expression) Shape}
 
@@ -73,6 +76,16 @@ Here are the previous examples rephrased as tests:
              (convert-syntax-error
               (my-when #:truth "verity"))))
 ]
+
+@exercise[#:tag "basic:my-unless"]{Design a macro @racket[my-unless] like
+@racket[my-when], except that it negates the condition.}
+
+@exercise[#:tag "basic:catch-output"]{Design a macro @racket[catch-output] that
+takes a single expression argument. The expression is evaluated, but its result
+is ignored; instead, the result of the macro is a string containing all of the
+output written by the expression. For example:
+
+@racketblock[(catch-output (for ([i 10]) (printf "~s" i))) (code:comment "expect \"0123456789\"")]}
 
 
 @; ------------------------------------------------------------
@@ -199,6 +212,14 @@ to write @shape{Expr{tmp}} for the shape of the first expression.)
 @bold{FIXME: explain this half of hygiene!}
 
 
+@exercise[#:tag "basic:if-let"]{Generalize @racket[my-and-let] to
+@racket[my-if-let], which takes an extra expression argument which is the
+macro's result if the condition is false. The macro should have the following
+shape:
+@codeblock{;; (my-if-let x:Id Expr Expr{x} Expr) : Expr}
+Double-check your solution to make sure it follows the scoping specified by the
+shape.}
+
 @; ------------------------------------------------------------
 @section[#:tag "expr-type"]{Expressions, Types, and Contracts}
 
@@ -233,31 +254,37 @@ Note that we introduce a @racket[pair-v] variable to avoid evaluating the
 
 We could add more information to the shape. The macro expects the first argument
 to be a pair, and whatever types of values the pair contains become the types of
-the identifiers. Also, the result of the macro is the result of the second
-expression, so the type of the macro is the same as the type of the second
-expression. Here is the more detailed shape:
+the identifiers:
 @codeblock{
-;; (my-match-pair Expr[(cons T1 T2)] x:Id xs:Id Expr{x:T1,xs:T2}[R]) : Expr[R]
+;; (my-match-pair Expr[(cons T1 T2)] x:Id xs:Id Expr{x:T1,xs:T2}) : Expr
 }
 I've written @shape{Expr[(cons T1 T2)]} for the shape of expressions of type
 @type{(cons T1 T2)}, where the type @type{(cons T1 T2)} is the type of all pairs
 (values made with the @racket[cons] constructor) whose first component has type
-@type{T1} and whose second component has type @type{T2}. The second @shape{Expr}
-has both a @emph{environment annotation} and a @emph{type annotation}; unlike
-the previous examples with environment annotations, I've included the types of
-the variables. This is a polymorphic shape; you can imagine an implicit
-@shape{forall (T1, T2, R)} at the beginning of the declaration.
+@type{T1} and whose second component has type @type{T2}. The second expression's
+environment annotation includes the types of the variables. This macro shape is
+polymorphic; you can imagine an implicit @shape{forall (T1, T2)} at the
+beginning of the declaration.
 
-Note: When I say ``type'' here, I'm not talking about Typed Racket or Hackett or
-some other typed language implemented in Racket. Nor do I mean that there's a
-super-secret type checker hidden in Racket on the top shelf next to the flight
-simulator. I'm using ``type'' to mean a semi-formal, unchecked description of
-the behavior of expressions and macros that manipulate them. In this case, the
-shape declaration for @racket[my-match-pair] warns the user that the first
-argument must produce a pair. If it doesn't, the user has failed their
-obligations, and the macro may do bad things.
+The result of the macro is the result of the second expression, so the type of
+the macro is the same as the type of the second expression. We could add that
+to the shape too:
+@codeblock{
+;; (my-match-pair Expr[(cons T1 T2)] x:Id xs:Id Expr{x:T1,xs:T2}[R]) : Expr[R]
+}
+Now the second @shape{Expr} has both a environment annotation and a type
+annotation. 
 
-Of course, given human limitations, it is preferable for the macro not to do bad
+Note: When I say ``type'' here, I'm not talking about Typed Racket or some other
+typed language implemented in Racket. Nor do I mean that there's a super-secret
+type checker hidden in Racket on the top shelf next to the flight simulator. I'm
+using ``type'' to mean a semi-formal, unchecked description of the behavior of
+expressions and macros that manipulate them. In this case, the shape declaration
+for @racket[my-match-pair] warns the user that the first argument must produce a
+pair. If it doesn't, the user has failed their obligations, and the macro may do
+bad things.
+
+Of course, given human limitations, we would prefer the macro not to do bad
 things. Ideally, the macro definition and macro uses could be statically checked
 for compliance with shape declarations, but Racket does not not implement such a
 checker for macros. (It's complicated.) At least, though, the macro could use
@@ -304,6 +331,10 @@ expression does not produce a pair:
 @examples[#:eval the-eval #:label #f
 (eval:error (my-match-pair 'not-a-pair n ns (void)))
 ]
+
+@exercise[#:tag "basic:my-when-contract"]{Modify the @racket[my-when] macro to
+check that the condition expression produces a boolean value. (Note: this is not
+idiomatic for Racket conditional macros).}
 
 @; ------------------------------------------------------------
 @section[#:tag "expr-ops"]{Uses of Expressions}

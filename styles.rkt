@@ -30,6 +30,7 @@
          expr_
          fail_
 
+         malr-version
          tech/reference
          tech/guide
          lesson
@@ -41,6 +42,8 @@
          exercise-number-ref
          solution-section
          cc-footer)
+
+(define malr-version "v2-draft-01")
 
 (define-syntax-rule (schemekw x) (schemekeywordfont (symbol->string 'x)))
 (define-syntax-rule (schemevar x) (schemevarfont (symbol->string 'x)))

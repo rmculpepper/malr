@@ -4,7 +4,7 @@
 #lang scribble/manual
 @(require "styles.rkt")
 
-@title[#:style 'toc #:version "2.0"]{Macros and Languages in Racket}
+@title[#:style 'toc #:version malr-version]{Macros and Languages in Racket}
 @author[@author+email["Ryan Culpepper" "ryanc@racket-lang.org"]]
 
 @(local-table-of-contents #|#:style 'immediate-only|#)
