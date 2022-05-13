@@ -267,9 +267,9 @@ Use the @racket[expr/c] syntax class for a pattern variable whose shape is
 @shape{Expr[Type]} when @type{Type} has a useful contract approximation. In this
 example, the type @type{(cons T1 T2)} has a useful contract approximation
 @racket[pair?], but there is no useful contract for the type @type{R}. The
-@racket[expr/c] syntax class takes a parameter, so you cannot use the
+@racket[expr/c] syntax class takes an argument, so you cannot use the
 @litchar{:} notation; you must use @racket[~var] or @racket[#:declare]
-instead. The parameter is a syntax object representing the contract to apply to
+instead. The argument is a syntax object representing the contract to apply to
 the expression. (It is @racket[#'pair?] instead of @racket[pair?] because the
 contract check is performed at run time.) Finally, use the @racket[c]
 ("contracted") @emph{attribute} of the pattern variable to get the
@@ -304,3 +304,89 @@ expression does not produce a pair:
 @examples[#:eval the-eval #:label #f
 (eval:error (my-match-pair 'not-a-pair n ns (void)))
 ]
+
+@; ------------------------------------------------------------
+@section[#:tag "expr-ops"]{Uses of Expressions}
+
+What can a macro do with an expression (@shape{Expr})?
+@itemlist[
+
+@item{It can use the value (or values) that the expression evaluates to. For
+example, the behavior of the @racket[my-when] macro depends on the value that
+its first expression produces.}
+
+@item{It can determine whether the expression is evaluated or when the
+expression is evaluated. The @racket[my-when] example determines whether to
+evaluate its second expression. The standard @racket[delay] macro is a classic
+example of controlling when an expression is evaluated.}
+
+@item{It can change what dynamic context the expression is evaluated within. For
+example, a macro could use @racket[parameterize] to evaluate the expression in a
+context with different values for some parameters.}
+
+@item{It can change the static context the expression is evaluated
+within. Mainly, this means putting the expression in the scope of additional
+bindings, as we did in @racket[my-and-let] and @racket[my-match-pair].}
+
+]
+
+There are also some restrictions on what macros can do with expressions:
+
+@itemlist[
+
+@item{@bold{A macro must not look at the contents of the expression itself.}
+Expressions are macro-extensible, so there is no grammar to guide case
+analysis. Interpreting expressions is the macro expander's business, so don't
+try it yourself. The macro expander is complicated, and if you attempt to
+duplicate its work ``just a little'', you are likely to make unjustified
+assumptions and get it wrong. For example, an expression consisting of a
+self-quoting datum is not necessarily a constant, or even free of side effects;
+it might have a nonstandard @racket[#%datum] binding, which could give it any
+behavior at all. Likewise, a single identifier is not necessarily a variable
+reference; it might be an identifier macro, or it might have a nonstandard
+@racket[#%top] binding.
+
+In later sections (FIXME-REF), we'll talk about how to cooperate with
+the macro expander to do case analysis of expressions and other forms.}
+
+@item{In general, a macro should not duplicate an argument expression. That is,
+the expression should occur exactly once in the macro's expansion. Duplicating
+expressions leads to expanding the same code multiple times, which can lead to
+slow compilation and bloated compiled code. The increases to both time and code
+size are potentially exponential, if duplicated expressions themselves contain
+macros that duplicate expressions and so on.
+
+If you want to evaluate the same expression multiple times, then thunk it and
+bind a temporary variable to the thunk and then use the variable to apply the
+thunk multiple times.
+
+One exception to this rule is if the macro knows that the expression is
+``simple'', like a variable reference or a quoted constant. For example, when a
+public macro binds a temporary variable to an argument expression and then calls
+a private helper macro with the temporary variable, the helper macro can
+duplicate the variable reference freely. Note that in this example, the private
+macro must know that the public macro gives it a simple expression; it cannot
+check whether an expression of unknown origin is simple (see the previous
+restriction).
+}
+
+@item{In general, a macro should evaluate expressions in the same order that
+they appear (that is, ``left to right''), unless it has a reason to do
+otherwise.
+
+In Racket information generally flows from left to right, and the interpretation
+of later terms can depend on earlier terms. For example, @racket[my-when] uses
+the value of its first (that is, left-most) expression argument to decide
+whether to evaluate its second (that is, right-most) expression. It would be
+non-idiomatic syntax design to put the condition expression second and the
+result expression first.
+
+Similarly, the scope of an identifier is generally somewhere to the right of the
+identifier itself. For example, in both @racket[my-and-let] and
+@racket[my-match-pair], the identifiers are in scope in the following
+expression. If we swapped @racket[my-match-pair]'s expressions, so it had the
+shape @shape{(my-match-pair Expr{x,xs} x:Id xs:Id Expr)}, that would be peculiar.}
+
+]
+
+The same principles apply to @shape{Body} terms as well.

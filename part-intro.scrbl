@@ -168,7 +168,7 @@ compile-time exceptions, like syntax errors? The following does not work:
 (eval:error
  (check-exn exn:fail:syntax?
             (lambda ()
-              (assert (odd? (length ls)) 'an-unexpected-argument))))
+              (assert (odd? (length ls)) 'an-extra-argument))))
 ]
 Racket expands and compiles expressions before it evaluates them. The syntax
 error is detected and raised at compile time (during expansion), but
@@ -181,7 +181,7 @@ One solution is to use @racket[eval] for this test. This is one of the few
 (check-exn exn:fail:syntax?
            (lambda ()
              (parameterize ((current-namespace (namespace-anchor->namespace anchor)))
-               (eval #'(assert (odd? (length ls)) 'an-unexpected-argument)))))
+               (eval #'(assert (odd? (length ls)) 'an-extra-argument)))))
 ]
 
 Another solution is to catch the compile-time exception and ``save it'' until
@@ -192,7 +192,7 @@ run time. The @racketmodname[syntax/macro-testing] library has a form called
 (check-exn exn:fail:syntax?
            (lambda ()
              (convert-syntax-error
-              (assert (odd? (length ls)) 'an-unexpected-argument))))
+              (assert (odd? (length ls)) 'an-extra-argument))))
 ]
 
 That completes the design of the @racket[assert] macro. We covered
