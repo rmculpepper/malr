@@ -367,3 +367,22 @@ the number of clauses it originally receives. There is no single right
 trade-off. One alternative is to make the public @racket[my-cond] macro check
 all of the clauses and then expand into a private recursive helper macro that
 only parses one clause at a time.
+
+@exercise[#:tag "compound:my-evcase1"]{Design a macro @racket[my-evcase1] with
+the following shape:
+@codeblock{
+;; (my-evcase1 Expr EC1Clause ...) : Expr
+;; where EC1Clause ::= [Expr Expr]  -- comparison value, result
+}
+Each clause is tried until the clause's first expression of the clause produces a value
+equal to the value of the macro's initial argument; that clause's second
+expression is the result of the macro. If no clause matches, the result is
+@racket[(void)].
+
+@racketblock[
+(my-evcase1 (begin (printf "got a coin!\n") (* 5 5))
+  [5 "nickel"] [10 "dime"] [25 "quarter"] [(/ 0) "infinite money!"])
+(code:comment "expect print once, result = \"quarter\"")
+]
+
+Hint: You might want to use a helper macro.}
