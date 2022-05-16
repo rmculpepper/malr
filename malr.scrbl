@@ -17,7 +17,47 @@
 @include-section["part-enum.scrbl"]
 @include-section["part-multi.scrbl"]
 
-@;@include-section["old/old.scrbl"]
+@;{
+
+Add to existing sections:
+- keep macros simple: use run-time helpers
+- Give names to strategy components
+  - case analysis with structural recursion
+  - run-time helper function
+  - compile-time helper function
+  - attributes in stxclass representing interp
+  - (private/public) helper macros, decomposition
+  - Maybe add "Recap" section, give names there instead
+    of in main text?
+- Exercises
+  - generalize cond to take "body list" (intro terminology,
+    "body term" vs "body list" ??)
+  - variant of cond with clause [Expr #:as Id Body ...+]
+  - and+ (with #:do clauses)
+  - (my-match-list Expr (Id ...) Expr) : Expr
+  - exercise recap
+    - If you didn't follow the design recipe, you missed the point! Fail!
+
+Next sections:
+- breaking hygiene (hash-view)
+- compile-time API
+  - write transformers, not macro-generating-macros
+  - set!-transformers (define-box-variable, define-parameter-variable)
+- ids bound to static info (match-hash-view)
+  - first with separate names
+  - then combine names (one struct, two interfaces)
+- regexp DSL
+  - monolithic compiler-like macro: parse -> codegen
+  - multiple modules
+  - more complicated phases
+  - two-pass expansion (why can't we have forward references?)
+
+- "polylithic" macros
+  - Idea: syntax-parameter for error reporting?
+
+}
+
+@include-section["old/old.scrbl"]
 
 
 @(cc-footer)

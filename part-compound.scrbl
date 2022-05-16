@@ -169,10 +169,19 @@ syntax-nature of the result; otherwise, use @racket[quote]. For example:
              #:quote quote)
 ]
 
-Here is yet another variation that avoids defining a separate compile-time
-helper function and just uses Racket's @racket[foldr]:
-
-The compile-time helper function could also be written as follows:
+The compile-time helper function could be written more concisely using
+@racket[foldr]:
+@examples[#:eval the-eval #:no-result #:escape UNQUOTE
+(begin-for-syntax
+  (code:comment "my-and-helper : (Listof Syntax[Expr]) -> Syntax[Expr]")
+  (define (my-and-helper exprs)
+    (foldr (lambda (expr_ rec-code)
+             #`(if #,expr_ #,rec-code #f))
+           #'#t
+           exprs)))
+]
+Or we could just use the body of the compile-time helper function (now that we
+have eliminated the recursion) directly in the macro:
 @examples[#:eval the-eval #:no-result #:escape UNQUOTE
 (code:comment "(my-and Expr ...) : Expr")
 (define-syntax my-and-helper
@@ -193,11 +202,12 @@ expressions:
                     (syntax->list #'((odd? 1) (even? 2)))))
 ]
 
+
 @; ------------------------------------------------------------
 @section[#:tag "ellipses-compound"]{Ellipses with Compound Shapes}
 
-Ellipses can also be used with compound shapes.For example, here is the shape of
-a simplified version of @racket[cond] (it doesn't support @racket[=>] and
+Ellipses can also be used with compound shapes. For example, here is the shape
+of a simplified version of @racket[cond] (it doesn't support @racket[=>] and
 @racket[else] clauses):
 
 @codeblock{
@@ -252,13 +262,18 @@ Here is another, using a recursive run-time helper function:
       (void)))
 ]
 
-Lesson: Many macros can be decomposed into two parts: a compile-time part that
+@lesson{Many macros can be decomposed into two parts: a compile-time part that
 adds @racket[lambda] wrappers to handle scoping and delayed evaluation, and a
-run-time part that implements the computation and behavior of the macro.
+run-time part that implements the computation and behavior of the macro.}
 
-@;{
-Exercise: define my-cond using a compile-time helper function
+@exercise[#:tag "compound:cond-ct"]{Implement @racket[my-cond] using a
+compile-time helper function that takes a list of condition expressions and a
+list of result expressions:
+@codeblock{
+;; my-cond-helper : (Listof Syntax[Expr]) (Listof Syntax[Expr]) -> Syntax[Expr]
+;; PRE: the two lists of expressions have the same length
 }
+Hint: Racket's @racket[foldr] function is variadic.}
 
 
 @; ------------------------------------------------------------
@@ -317,7 +332,7 @@ class cannot enforce that interpretation.
 We update the macro's shape, and we update the implementation's pattern to use a
 pattern variable annotated with the new syntax class
 (@racket[c:cond-clause]). In the template, we refer to the pattern variable's
-@emph{nested attributes} defined by the syntax class (@racket[c.condition] and
+@emph{attributes} defined by the syntax class (@racket[c.condition] and
 @racket[c.result]).
 
 @examples[#:eval the-eval #:no-result
