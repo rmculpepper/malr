@@ -21,6 +21,7 @@
 
 Add to existing sections:
 - keep macros simple: use run-time helpers
+- SimpleExpr shape ?
 - Give names to strategy components
   - case analysis with structural recursion
   - run-time helper function
@@ -39,6 +40,9 @@ Add to existing sections:
     - If you didn't follow the design recipe, you missed the point! Fail!
 
 Next sections:
+- Datum shape, quasiquote
+- Static shape (need example!)
+
 - breaking hygiene (hash-view)
 - compile-time API
   - write transformers, not macro-generating-macros
