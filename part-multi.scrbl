@@ -17,6 +17,9 @@
 @; ============================================================
 @title[#:tag "multi-shapes" #:version ""]{Multi-Term Shapes}
 
+This section introduces ``multi-term'' shapes, used to describe syntactic
+elements like keyword arguments.
+
 
 @; ------------------------------------------------------------
 @section[#:tag "multi-terms"]{Shapes for Multiple Terms}
@@ -60,14 +63,6 @@ shape:
 ;; | #:do Body
 }
 
-@;{
-@codeblock{
-;; CondClause[∅] ::= [Expr Expr]
-;; CondClause[∅] ::= [Expr #:apply Expr]
-;; CondClause[Δ] ::= #:do Body[Δ]
-}
-}
-
 Here is the corresponding syntax class, including only the patterns:
 @examples[#:eval the-eval #:no-result
 (begin-for-syntax
@@ -85,7 +80,10 @@ macro? Let's review the implementations of @racket[my-cond] from
 @secref["enum-shapes-def"]:
 @itemlist[
 
-@item{The approach from @secref["enum-unify"] no longer works, because
+@item{The approach of redoing the case analysis from @secref["enum-empty"] would
+also still work.}
+
+@item{The approach from @secref["enum-meaning"] no longer works, because
 @racket[#:do] clauses are not a special case of @racket[#:apply] clauses.}
 
 @item{The failure-continuation approach from @secref["enum-behavior"] no longer
@@ -98,10 +96,14 @@ since the code generator for the @racket[#:do] clause can put the expression
 representing the rest of the clauses in the scope of the @racket[#:do]-clause's
 definitions.}
 
-@item{The approach of redoing the case analysis from @secref["enum-again"] would
-also still work.}
+@item{The AST approach from @secref["enum-ast"] would still work. We would need
+to update the AST datatype with a new variant and update the macro's case
+analysis to handle it.}
 
 ]
+
+This is a good summary of how robust each of these strategies is to changes in
+the shape.
 
 @; ----------------------------------------
 @subsection[#:tag "multi-redo-case"]{Redo Case Analysis}
@@ -143,7 +145,7 @@ recursive macro:
 
 
 @; ----------------------------------------
-@subsection[#:tag "multi-codegen"]{Use a Code Generator Interface}
+@subsection[#:tag "multi-codegen"]{Code Generator Interface}
 
 With the code generator interface, the new implementation simply involves two
 changes to the old implementation. We must change @racket[define-syntax-class]
@@ -177,6 +179,12 @@ below. The definition of @racket[my-clause] itself does not change.
             #'(void)
             (datum (c.make-code ...)))]))
 ]
+
+@; ----------------------------------------
+@subsection[#:tag "multi-ast"]{AST Interface}
+
+@exercise[#:tag "multi-cond/ast"]{Adapt the solution from @secref["enum-ast"] to
+support @racket[#:do]-clauses.}
 
 
 @; ------------------------------------------------------------
@@ -227,3 +235,97 @@ only changes are to the pattern and the use of @racket[#'fc.result] instead of
 To avoid ambiguity, we must check that @shape{CondClause} and
 @shape{MaybeFinalCondClause} don't overlap. They don't.
 }
+
+
+@; ------------------------------------------------------------
+@section[#:tag "shapes-types-scopes"]{Shapes, Types, and Scopes (@STAR)}
+
+In @secref["basic-id"] and @secref["basic-type"] we explored how to express
+scoping and type relationships between parts of a shape. Can we extend the
+notation to express the scoping of the @racket[#:do] form of @shape{CondClause}?
+
+Recall the example program:
+@racketblock[
+(define ls '((a 1) (b 2) (c 3)))  (code:comment "(Listof (list Symbol Integer))")
+(define entry (assoc 'b ls))      (code:comment "(list Symbol Integer)")
+(my-cond [(not entry) (error "not found")]
+         #:do (define value (cadr entry))
+         [(even? value) 'even]
+         [(odd? value) 'odd])
+]
+
+How does each clause affect the environment of subsequent clauses? The first
+clause has no effect on the environments of the following clauses. The second
+clause adds a variable binding @racket[value] with type @type{Integer}. More
+generally, since we could define multiple variables using @racket[define-values]
+or combine definitions with @racket[begin], each clause might bind a @emph{set}
+of variables, and each variable has a corresponding type. The first clause
+produces no bindings (so @type{∅}, the empty set); the second set produces
+@type{{value:Integer}}; the third and fourth clauses also produce
+@type{∅}. Let's add a parameter to @shape{CondClause} representing the bindings
+it ``produces'' --- that is, the bindings it adds to the environments of
+subsequent clauses. We need to change the way we write the shape definition:
+@codeblock{
+;; CondClause[∅] ::= [Expr Expr]
+;; CondClause[∅] ::= [Expr #:apply Expr]
+;; CondClause[Δ] ::= #:do Body[Δ]
+}
+We need the same information from the @shape{Body} shape. Note that @shape{Δ}
+does not stand for a type; it stands for a set of pairs of names and types ---
+that is, a fragment of a type environment.
+
+In the second clause of this example, @shape{Δ} is @shape{{value:Integer}}. That
+is:
+@racketblock[
+#:do (define value (cadr entry))   @#,shape{: CondClause[{value:Integer}]}
+]
+because
+@racketblock[
+(define value (cadr entry))        @#,shape{: Body[{value:Integer}]}
+]
+
+We also need to change the way we talk about lists of clauses. The notation
+@shape{CondClause ...} doesn't give us a good way to talk about the relationship
+between different clauses. Instead, let's define a multi-term shape called
+@shape{CondClauses}:
+
+@codeblock{
+;; CondClauses ::= ε
+;; CondClauses ::= CondClause[Δ] CondClauses{Δ}
+}
+
+By @shape{CondClauses{Δ}} I mean that all expressions, body terms, etc within
+the clause are in the scope of the additional bindings described by
+@shape{Δ}. That is, an environment annotation is implicitly propagated to all of
+a shape's sub-shapes. The second line says that in @shape{CondClauses} sequence,
+if one clause produces some bindings, then subsequent clauses are in their scope.
+
+Here are the shape definitions with the environment annotations made fully
+explicit, where @shape{Γ} stands for a type environment:
+
+@codeblock{
+;; CondClause{Γ}[∅] ::= [Expr{Γ} Expr{Γ}]
+;; CondClause{Γ}[∅] ::= [Expr{Γ} #:apply Expr{Γ}]
+;; CondClause{Γ}[Δ] ::= #:do Body{Γ}[Δ]
+
+;; CondClauses{Γ} ::= ε
+;; CondClauses{Γ} ::= CondClause[Δ] CondClauses{Γ,Δ}
+}
+
+Finally, here is the shape of @racket[my-cond]:
+@codeblock{
+;; (my-cond CondClauses)    : Expr      -- implicit
+;; (my-cond CondClauses{Γ}) : Expr{Γ}   -- explicit
+}
+
+That shows how to use the shape notation to specify type and scoping
+relationships between components of shapes.
+
+For many macros, it is probably unnecessary to put this level of detail in the
+shape declarations. A more practical approach might be to limit the shapes to
+specifying syntactic structure and interpretation, as we've been doing, and
+describe the scoping of shapes and macros in prose.
+
+On the other hand, a more precise specification is sometimes useful when writing
+macros with complicated binding structures. So keep this tool in mind in case
+you need it.

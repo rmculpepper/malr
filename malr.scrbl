@@ -41,6 +41,8 @@ Add to existing sections:
 
 Next sections:
 - Datum shape, quasiquote
+  - quote / quote-syntax on prefab structs!
+  - quasiquote example?
 - Static shape (need example!)
 
 - breaking hygiene (hash-view)
