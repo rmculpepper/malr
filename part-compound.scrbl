@@ -57,9 +57,20 @@ example, here is the shape of Racket's @racket[and] macro:
 ;; (and Expr ...) : Expr
 }
 
-How can we implement our own macro with this shape? One strategy is to use
-recursion and case analysis:
+How can we implement our own macro with this shape? There are three basic
+implementation strategies:
+@itemlist[
+@item{recursive macro}
+@item{recursive run-time helper function}
+@item{recursive compile-time helper function}
+]
 
+@; ----------------------------------------
+@subsection[#:tag "ellipses-rec-macro"]{Recursive Macros}
+
+The first strategy is to write a macro that does case analysis and explicit
+recursion --- that is, the macro expands into another use of itself. Here is a
+recursive implementation of @racket[my-and]:
 @examples[#:eval the-eval #:no-result
 (code:comment "(my-and Expr ...) : Expr")
 (define-syntax my-and
@@ -100,8 +111,10 @@ and then @racket[my-and]'s base case matches and it disappears entirely:
 ==> (if (odd? 1) (if (even? 2) (if (odd? 3) #t #f) #f) #f)
 ]
 
-Must we always use recursion and case analysis to implement macros with ellipsis
-shapes? No; sometimes we can rewrite it into another variable-arity form or
+@; ----------------------------------------
+@subsection[#:tag "ellipses-rt-helper"]{Recursive Run-time Helper Function}
+
+Another implementation strategy is to expand into another variable-arity form or
 function. For example, here is another definition of @racket[my-and] that relies
 on Racket's @racket[andmap] function, ``thunking'' to delay evaluation, and the
 variable-arity @racket[list] function:
@@ -115,12 +128,35 @@ variable-arity @racket[list] function:
                (list (lambda () e) ...))]))
 ]
 
-For a common, simple macro like @racket[and], this is (likely) not a good
+Note the use of @racket[(lambda () e) ...] in the template. The pattern variable
+@racket[e] occurred in front of ellipses in the pattern, so it must be used in
+front of ellipses in the template. But the term before the ellipses in the
+template isn't just @racket[e], it is @racket[(lambda () e)]. This wrapper
+around @racket[e] gets copied for every instance of @racket[e]:
+@racketblock[
+(my-and 1 2 3)
+==>
+(andmap (lambda (thunk) (thunk))
+        (list (lambda () 1) (lambda () 2) (lambda () 3)))
+]
+That is, ellipses in a syntax template act like an implicit @racket[map] over
+the pattern variables.
+
+For a frequently-used, simple macro like @racket[and], this might not be a good
 implementation because of run-time overhead, but for other macros this kind of
 implementation might be reasonable.
 
-Here is another implementation of @racket[my-and], where the macro itself is not
-recursive but the transformer uses a recursive compile-time helper function:
+@lesson{Many macros can be decomposed into two parts: a compile-time part that
+adds @racket[lambda] wrappers to handle scoping and delayed evaluation, and a
+run-time part that implements the computation and behavior of the macro.}
+
+@; ----------------------------------------
+@subsection[#:tag "ellipses-ct-helper"]{Recursive Compile-time Helper Function}
+
+The final strategy is to use a compile-time helper function, which handles the
+recursion either directly or indirectly. Here is another implementation of
+@racket[my-and], where the macro itself is not recursive but the transformer
+uses a recursive compile-time helper function:
 
 @examples[#:eval the-eval #:no-result #:escape UNQUOTE
 (begin-for-syntax
@@ -228,22 +264,7 @@ Here's a recursive implementation:
            (my-cond more ...))]))
 ]
 
-Here is a non-recursive implementation of @racket[my-cond]. It relies on
-Racket's variadic @racket[or] form and the fact that @racket[and] and
-@racket[or] treat any value other than @racket[#f] as true, and return that
-value to represent a true result.
-
-@examples[#:eval the-eval #:no-result
-(code:comment "(my-cond [Expr Expr] ...) : Expr")
-(define-syntax my-cond
-  (syntax-parser
-    [(_ [condition:expr result:expr] ...)
-     #'((or (and condition (lambda () result))
-            ...
-            void))]))
-]
-
-Here is another, using a recursive run-time helper function:
+Here is an implementation using a recursive run-time helper function:
 @examples[#:eval the-eval #:no-result
 (code:comment "(my-cond [Expr Expr] ...) : Expr")
 (define-syntax my-cond
@@ -262,9 +283,20 @@ Here is another, using a recursive run-time helper function:
       (void)))
 ]
 
-@lesson{Many macros can be decomposed into two parts: a compile-time part that
-adds @racket[lambda] wrappers to handle scoping and delayed evaluation, and a
-run-time part that implements the computation and behavior of the macro.}
+Here is an implementation using a recursive helper @emph{macro} --- Racket's
+variadic @racket[or] macro. It also relies on fact that @racket[and] and
+@racket[or] treat any value other than @racket[#f] as true, and return that
+specific true value as their result when appropriate.
+
+@examples[#:eval the-eval #:no-result
+(code:comment "(my-cond [Expr Expr] ...) : Expr")
+(define-syntax my-cond
+  (syntax-parser
+    [(_ [condition:expr result:expr] ...)
+     #'((or (and condition (lambda () result))
+            ...
+            void))]))
+]
 
 @exercise[#:tag "compound:cond-ct"]{Implement @racket[my-cond] using a
 compile-time helper function that takes a list of condition expressions and a

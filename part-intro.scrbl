@@ -288,7 +288,7 @@ prevents the use-site local binding of @racket[error] from capturing the
 reference @elem{@racket[error]@superscript{m}}.
 
 This example illustrates one half of @emph{hygienic macro expansion}. We'll talk
-about the other half in FIXME-REF.
+about the other half in @secref["basic-hygiene2"].
 
 
 @; ------------------------------------------------------------

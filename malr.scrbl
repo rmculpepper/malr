@@ -59,7 +59,14 @@ Next sections:
 - "polylithic" macros
   - Idea: syntax-parameter for error reporting?
 
+Racket changes:
+- `body`, etc syntax classes
+
+
 }
+
+
+
 
 @include-section["old/old.scrbl"]
 

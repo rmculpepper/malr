@@ -6,11 +6,11 @@
           (only-in scribble/example examples)
           "styles.rkt"
           (for-label racket/base syntax/parse racket/match syntax/macro-testing
-                     racket/port rackunit))
+                     racket/port racket/block rackunit))
 
 @(define the-eval (make-base-eval))
 @(the-eval '(require (only-in racket/base [quote Quote] [syntax Syntax])
-                     rackunit syntax/macro-testing racket/port
+                     rackunit syntax/macro-testing racket/port racket/block
                      (for-syntax racket/base racket/syntax syntax/parse
                                  (only-in racket/base [quote Quote] [syntax Syntax]))))
 
@@ -21,7 +21,7 @@ This section introduces the more important basic shapes for macro design.
 
 
 @; ------------------------------------------------------------
-@section[#:tag "shape:expr"]{The Expr (Expression) Shape}
+@section[#:tag "basic-expr"]{The Expr (Expression) Shape}
 
 The @shape{Expr} shape contains all terms except for keywords (like
 @racket[#:when]). In principle, there are ways to make keywords legal Racket
@@ -89,7 +89,7 @@ output written by the expression. For example:
 
 
 @; ------------------------------------------------------------
-@section[#:tag "shape:body"]{The Body Shape}
+@section[#:tag "basic-body"]{The Body Shape}
 
 The @shape{Body} shape is like @shape{Expr} --- it contains all terms except
 keywords --- except that it indicates that the term will be used in a body
@@ -97,7 +97,7 @@ context, so definitions are allowed in addition to expressions.
 
 There is no distinct syntax class for @shape{Body}; just use @racket[expr].
 
-In practice, the @shape{Body} shape is used with ellipses; see
+In practice, the @shape{Body} shape is usually used with ellipses; see
 @secref["compound-shapes"]. But we can make a version of @racket[my-when] that
 takes a single @shape{Body} term, even though it isn't idiomatic Racket
 syntax. Here is the shape:
@@ -122,10 +122,106 @@ implementation:
     [(_ condition:expr result-body:expr)
      #'(if condition (let () result-body) (void))]))
 ]
+That is, use @racket[(block _)] to wrap a @shape{Body} so it can be used in a
+strict @shape{Expr} position. It is also common to use a @racket[(let () _)]
+wrapper, but that does not work for all @shape{Body} terms; it requires that the
+@shape{Body} term ends with an expression. The @racket[block] form is more
+flexible.
+
+Racket's @racket[#%expression] form is useful in the opposite situation. It has
+the following shape:
+@codeblock{
+;; (#%expression Expr) : Body
+}
+That is, use @racket[(#%expression _)] to turn a @shape{Body} position into a
+strict @shape{Expr} position.
+
+@exercise[#:tag "basic:catch-output-expr"]{Check your solution to
+@exercise-ref["basic:catch-output"]; does the macro also accept @shape{Body}
+terms like the one above? That is, does the following work:
+@racketblock[
+(catch-output (begin (define q (quotient n 2)) (printf "q = ~s\n" q)))
+]
+If so, ``fix it'' using @racket[#%expression].}
 
 
 @; ------------------------------------------------------------
-@section[#:tag "basic-expr"]{The Id (Identifier) Shape}
+@section[#:tag "basic-hygiene2"]{Proper Lexical Scoping, Part 2}
+
+Here is one solution to @exercise-ref["basic:catch-output"] using
+@racket[with-output-to-string]:
+@examples[#:eval the-eval #:no-result
+(code:comment "(catch-output Expr) : Expr")
+(define-syntax catch-output
+  (syntax-parser
+    [(_ e:expr)
+     #'(with-output-to-string (lambda () (#%expression e)))]))
+]
+Racket already provides @racket[with-output-to-string] from the
+@racketmodname[racket/port] library, but if it did not, we could define it as
+follows:
+@examples[#:eval the-eval #:no-result
+(code:comment "with-output-to-string : (-> Any) -> String")
+(define (with-output-to-string proc)
+  (let ([out (open-output-string)])
+    (parameterize ((current-output-port out))
+      (proc))
+    (get-output-string out)))
+]
+
+Here is another implementation of @racket[catch-output], which essentially
+inlines the definition of @racket[with-output-to-string] into the macro
+template:
+@examples[#:eval the-eval #:no-result
+(code:comment "(catch-output Expr) : Expr")
+(define-syntax catch-output
+  (syntax-parser
+    [(_ e:expr)
+     #'(let ([out (open-output-string)])
+         (parameterize ((current-output-port out))
+           (#%expression e))
+         (get-output-string out))]))
+]
+
+In @secref["intro-lexical"] we saw that we cannot interfere with a macro's
+``free variables'' by shadowing them at the macro use site. For example, the
+following attempt to capture the macro's reference to @racket[get-output-string]
+fails:
+@examples[#:eval the-eval #:label #f
+(let ([get-output-string (lambda (p) "pwned!")])
+  (catch-output (printf "doing just fine, actually")))
+]
+
+But what about the other direction? The macro introduces a binding of a variable
+names @racket[out]; could this binding capture references to @racket[out] in the
+expression given to the macro? Here is an example:
+
+@examples[#:eval the-eval #:label #f
+(let ([out "Aisle 24"])
+  (catch-output (printf "The exit is located at ~a." out)))
+]
+
+The result shows that the macro's @racket[out] binding does not interfere with
+the use-site's @racket[out] variable. We say that the @racket[catch-output]
+macro is ``hygienic''.
+
+A macro is @emph{hygienic} if it follows these two lexical scoping principles:
+@itemlist[#:style 'ordered
+
+@item{A @emph{use-site binding} does not capture a @emph{definition-site
+reference}.}
+
+@item{A @emph{definition-site binding} does not capture a @emph{use-site
+reference}.}
+
+]
+Racket macros are hygienic by default. In FIXME-REF we will discuss a few
+situations when it is useful to break hygiene, and we will show how to write
+some unhygienic macros.
+
+
+@; ------------------------------------------------------------
+@section[#:tag "basic-id"]{The Id (Identifier) Shape}
 
 The @shape{Id} shape contains all identifiers.
 
@@ -221,7 +317,7 @@ Double-check your solution to make sure it follows the scoping specified by the
 shape.}
 
 @; ------------------------------------------------------------
-@section[#:tag "expr-type"]{Expressions, Types, and Contracts}
+@section[#:tag "basic-type"]{Expressions, Types, and Contracts}
 
 Let's design the macro @racket[my-match-pair], which takes an expression to
 destructure, two identifiers to bind as variables, and a result expression. Here
@@ -337,7 +433,7 @@ check that the condition expression produces a boolean value. (Note: this is not
 idiomatic for Racket conditional macros).}
 
 @; ------------------------------------------------------------
-@section[#:tag "expr-ops"]{Uses of Expressions}
+@section[#:tag "basic-expr-uses"]{Uses of Expressions}
 
 What can a macro do with an expression (@shape{Expr})?
 @itemlist[
