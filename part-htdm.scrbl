@@ -8,8 +8,8 @@
 @title[#:tag "htdm" #:version ""]{How to Design Macros}
 
 This guide is an attempt to adapt the ideas of
-@italic{@hyperlink["https://htdp.org/"]{How to Design Programs} (HtDP)} to
-designing Racket's macros and languages. The central idea of HtDP is the
+@italic{@hyperlink["https://htdp.org/"]{How to Design Programs} (HtDP)} to the
+design of macros and languages in Racket. The central idea of HtDP is the
 ``design recipe''; the kernel of the design recipe consists of the following
 four steps:
 
@@ -50,8 +50,6 @@ the programming model for macros: macros (usually) respect lexical scoping;
 they must respect the ``phase'' separation between compile time and run time;
 they avoid @racket[eval]; they (usually) treats expressions as opaque; and so
 on.
-
-This section introduces the elements of macro design via a simple example macro.
 
 @; FIXME: transition
 

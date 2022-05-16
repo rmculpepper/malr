@@ -15,6 +15,11 @@
 @; ============================================================
 @title[#:tag "intro" #:version ""]{Introduction}
 
+This section introduces the elements of macro design, based on an adaptation of
+the @italic{@hyperlink["https://htdp.org/"]{How to Design Programs}} design
+recipe. It illustrates these design elements with simple example macro.
+
+@; ------------------------------------------------------------
 @include-section["part-htdm.scrbl"]
 
 @; ------------------------------------------------------------
