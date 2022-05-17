@@ -7,20 +7,72 @@
           "styles.rkt"
           (for-label racket/base syntax/parse racket/match rackunit syntax/macro-testing))
 
-@(define the-eval (make-base-eval))
-@(the-eval '(require (only-in racket/base [quote Quote] [syntax Syntax])
-                     (for-syntax (only-in racket/base [quote Quote] [syntax Syntax]))
-                     (for-syntax racket/base syntax/parse)))
+@(define the-eval (make-malr-eval #:assert? #f))
+
+@(define HtDP (hyperlink "https://htdp.org/" @italic{HtDP}))
+@(define HtDP-long @italic{@hyperlink["https://htdp.org/"]{How to Design Programs} (HtDP)})
 
 @; ============================================================
 @title[#:tag "intro" #:version ""]{Introduction}
 
-This section introduces the elements of macro design, based on an adaptation of
-the @italic{@hyperlink["https://htdp.org/"]{How to Design Programs}} design
-recipe. It illustrates these design elements with simple example macro.
+This section introduces the elements of macro design and illustrates these
+design elements with simple example macro.
+
+This guide assumes that you have a basic working knowledge of Racket and
+functional programming. @other-doc['(lib "scribblings/guide/guide.scrbl")] is
+sufficient for the former, and @HtDP is good for the latter.
+
 
 @; ------------------------------------------------------------
-@include-section["part-htdm.scrbl"]
+@section[#:tag "htdm"]{How to Design Macros}
+
+This guide is an attempt to adapt the ideas of @HtDP-long to the design of
+macros and languages in Racket. The central idea of @italic{HtDP} is the ``design
+recipe''; the kernel of the design recipe consists of the following four steps:
+
+@itemlist[#:style 'numbered
+
+@item{Write a specification.}
+@item{Write examples that can be turned into tests.}
+@item{Choose an implementation strategy.}
+@item{Finish the implementation and check it.}
+
+]
+
+@italic{HtDP} instantiates this kernel to teach the foundations of
+programming. Its specification language is a semiformal language of types
+including set-based reasoning and parametric polymorphism. Its implementation
+strategies include structural recursion and case analysis following data type
+definitions. It instantiates the implementation language to a series of simple
+Scheme-like functional programming languages, and it provides a testing
+framework.
+
+Along the way, @italic{HtDP} fills in the design recipe's skeleton with idioms,
+tricks, preferences, and limitations of Scheme-like (and ML-like)
+mostly-functional programming languages. For example, it demonstrates
+abstraction via parametric polymorphism and higher-order functions. To name some
+of the limitations: it uses lexical scoping; it avoids reflection (eg, no
+accessing structure fields by strings); it avoids @racket[eval]; it treats
+closures as opaque; it (usually) avoids mutation; and so on. These parts of the
+programming mental model tend to become invisible, until you compare with a
+language that makes different choices.
+
+This guide instantiates the design recipe kernel as follows: It introduces a
+specification language called @emph{shapes}, combining features of grammars,
+patterns, and types. The implementation strategies are more specialized, but
+they are still informed by the shape of the macro inputs. The implementation
+language is Racket with @racketmodname[syntax/parse] and some other standard
+syntax libraries.
+
+Along the way, I cover some of the idioms and limitations of the programming
+model for macros: macros (usually) respect lexical scoping; they must respect
+the ``phase'' separation between compile time and run time; they avoid
+@racket[eval]; they (usually) treat expressions as opaque; and so on.
+
+@; FIXME: transition
+
+@; FIXME: "and languages"?
+
 
 @; ------------------------------------------------------------
 @section[#:tag "first"]{Designing Your First Macro}
@@ -279,7 +331,7 @@ expansion of this @racket[assert] example:
 (code:comment "WRONG")
 (let ([error void])
   (unless (even? (length ls))
-    (error 'assert "assertion failed: ~s" (quote (even? (length ls))))))
+    (error 'assert "assertion failed: ~s" (Quote (even? (length ls))))))
 ]
 Instead, each term introduced by @racket[assert] carries some lexical context
 information with it. Here's a better way to think of the expansion:
@@ -359,7 +411,7 @@ the implementation of @racket[assert].
 
 Note: There are two differences between @racket[assert] and
 @racket[assert-transformer]. The name @racket[assert] is bound as a @emph{macro}
-in the @emph{normal} environment (also called the @emph{run-time environment} or
+in the @emph{normal environment} (also called the @emph{run-time environment} or
 the @emph{phase-0 environment}), whereas the name @racket[assert-transformer] is
 bound as a @emph{variable} in the @emph{compile-time environment} (also called
 the @emph{transformer environment} or the @emph{phase-1 environment}). Both of
@@ -412,10 +464,9 @@ object API. Here's one version:
 @examples[#:eval the-eval #:no-result
 (define-syntax assert
   (lambda (stx)
-    (define (bad-syntax) (raise-syntax-error #f "bad syntax" stx))
     (define parts (syntax->list stx)) (code:comment "parts : (U (Listof Syntax) #f)")
-    (unless (list? parts) (bad-syntax))
-    (unless (= (length parts) 2) (bad-syntax))
+    (unless (and (list? parts) (= (length parts) 2))
+      (raise-syntax-error #f "bad syntax" stx))
     (define condition-stx (cadr parts)) (code:comment "condition-stx : Syntax[Expr]")
     (define code
       (list (quote-syntax unless) condition-stx
@@ -434,7 +485,24 @@ constant for a term that captures the lexical context of the term itself. The
 lexical context can be transferred to a tree using @racket[datum->syntax]; it
 wraps pairs, atoms, etc, but it leaves existing syntax objects unchanged.
 
+Here is a variant of the previous definition that uses @racket[quasisyntax]
+(reader abbreviation @litchar{#`}) and @racket[unsyntax] (reader abbreviation
+@litchar{#,}) to construct the macro's result:
+
+@examples[#:eval the-eval #:no-result #:escape UNQUOTE
+(define-syntax assert
+  (lambda (stx)
+    (define parts (syntax->list stx)) (code:comment "parts : (U (Listof Syntax) #f)")
+    (unless (and (list? parts) (= (length parts) 2))
+      (raise-syntax-error #f "bad syntax" stx))
+    (define condition-stx (cadr parts)) (code:comment "condition-stx : Syntax[Expr]")
+    #`(unless #,condition-stx
+        (error 'assert "assertion failed: ~s" (quote #,condition-stx)))))
+]
+
 In general, this guide will stick to the @racketmodname[syntax/parse] system for
 macro definitions, and it uses the @litchar{#'} abbreviation for @racket[syntax]
 expressions. It will sometimes be necessary to use the lower-level APIs to
 perform some auxiliary computations.
+
+@(close-eval the-eval)

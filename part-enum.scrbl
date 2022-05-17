@@ -8,14 +8,16 @@
           (for-label racket/base syntax/parse syntax/datum racket/match syntax/macro-testing
                      racket/port rackunit))
 
-@(define the-eval (make-base-eval))
-@(the-eval '(require (only-in racket/base [quote Quote] [syntax Syntax])
-                     rackunit syntax/macro-testing racket/port
-                     (for-syntax racket/base racket/syntax syntax/parse syntax/datum racket/match
-                                 (only-in racket/base [quote Quote] [syntax Syntax]))))
+@(define the-eval (make-malr-eval))
+@(the-eval '(require (for-syntax racket/match)))
 
 @; ============================================================
 @title[#:tag "enum-shapes" #:version ""]{Enumerated Shapes}
+
+This section introduces enumerated shapes --- that is, shapes with multiple
+variants. An enumerated shape poses a problem in defining the interface between
+the corresponding syntax class and the macro that uses it. This section
+discusses several strategies for defining this interface.
 
 
 @; ------------------------------------------------------------
@@ -45,6 +47,13 @@ Here are some examples:
 (my-cond [(assoc 'z ls) #:apply cadr] [#t 0])
 (code:comment "expect 0")
 ]
+
+@(define (test-my-cond2)
+   @examples[#:eval the-eval #:hidden
+   (define ls '((a 1) (b 2) (c 3)))
+   (assert (equal? (my-cond [(assoc 'b ls) #:apply cadr] [#t 0]) 2))
+   (assert (equal? (my-cond [(assoc 'z ls) #:apply cadr] [#t 0]) 0))
+   ])
 
 Here is one way the first example could expand (just the first step):
 @racketblock[
@@ -129,6 +138,7 @@ of its arguments, then expands into a private recursive helper macro
              (get-result condition-value)
              (my-cond* more ...)))]))
 ]
+@(test-my-cond2)
 
 An advantage of this strategy is that it is nearly always a viable option. A
 disadvantage is that it duplicates syntax patterns, which introduces the
@@ -145,7 +155,7 @@ If the condition evaluates to a true value, it is bound to the given variable
 name and the result expression is evaluated in the scope of that variable. The
 scope of the variable does not include any other clauses.
 
-Revise the design of @racket[cond-clause] and @racket[my-cond] for the new
+Update the design of @racket[cond-clause] and @racket[my-cond] for the new
 @shape{CondClause} variant using the strategy described in this section.}
 
 @; ----------------------------------------
@@ -197,6 +207,7 @@ Here is an implementation of @racket[my-cond] using this version of
              (c.get-result condition-value)
              (my-cond more ...)))]))
 ]
+@(test-my-cond2)
 
 You might worry that introducing a @racket[lambda] wrapper and a function call
 for every simple clause form will make the generated code run slower. After all,
@@ -212,7 +223,7 @@ compiled code, with zero run-time overhead.
 @; Clarify type quantifiers: universal wrt parsing, existential wrt result (ish)
 
 @exercise[#:tag "enum-cond/meaning"]{See @exercise-ref["enum-cond/empty"] for a
-revised definition of @shape{CondClause}. Revise the design of
+revised definition of @shape{CondClause}. Update the design of
 @racket[cond-clause] and @racket[my-cond] for the new @shape{CondClause} variant
 using the strategy described in this section.}
 
@@ -266,6 +277,7 @@ Now in the recursive case, the @racket[my-cond] macro just calls the clause's
     [(_ c:cond-clause more ...)
      #'(c.code (lambda () (my-cond more ...)))]))
 ]
+@(test-my-cond2)
 
 Again, you might worry that the use of @racket[lambda] leads to run-time
 inefficiency, but the way this macro uses @racket[lambda] is easily optimized
@@ -274,7 +286,7 @@ away by the compiler.
 @; FIXME: verify the compiler inlines all lambdas away
 
 @exercise[#:tag "enum-cond/behavior"]{See @exercise-ref["enum-cond/empty"] for a
-revised definition of @shape{CondClause}. Revise the design of
+revised definition of @shape{CondClause}. Update the design of
 @racket[cond-clause] and @racket[my-cond] for the new @shape{CondClause} variant
 using the strategy described in this section.}
 
@@ -316,6 +328,7 @@ Here is the corresponding definition of @racket[my-cond]:
     [(_ c:cond-clause more ...)
      ((datum c.make-code) #'(my-cond more ...))]))
 ]
+@(test-my-cond2)
 The value of @racket[c.make-code] is not syntax, so we cannot use it in a syntax
 template. We use @racket[datum] to get the attribute value (a function), and
 apply it to syntax representing an expression handling the rest of the clauses.
@@ -332,11 +345,12 @@ then uses @racket[foldr] to process all of their code generators:
             #'(void)
             (datum (c.make-code ...)))]))
 ]
+@(test-my-cond2)
 The expression @racket[(datum (c.make-code ...))] has type @type{(Listof
 (Syntax[Expr] -> Syntax[Expr]))}.
 
 @exercise[#:tag "enum-cond/codegen"]{See @exercise-ref["enum-cond/empty"] for a
-revised definition of @shape{CondClause}. Revise the design of
+revised definition of @shape{CondClause}. Update the design of
 @racket[cond-clause] and @racket[my-cond] for the new @shape{CondClause} variant
 using the strategy described in this section.}
 
@@ -383,14 +397,6 @@ The type @type{ClauseRep} represents parsed terms of the shape
 practice I often use the same name for type and shape. The context usually
 disambiguates them.
 
-I use prefab structs for the AST.
-
-@examples[#:eval the-eval #:label #f
-(phase1-eval (syntax-parse #'[(assoc 'b ls) #:apply cadr]
-               [c:cond-clause (datum c.ast)]))
-]
-
-
 Here is one implementation of the @racket[my-cond] macro, using @racket[match]
 to do case analysis on the clause ASTs:
 @codeblock{
@@ -408,16 +414,13 @@ to do case analysis on the clause ASTs:
             #'(void)
             (datum (c.ast ...)))]))
 }
-
-@; There are other options, see FIXME-REF
+@(test-my-cond2)
 
 @exercise[#:tag "enum-cond/ast"]{See @exercise-ref["enum-cond/empty"] for a
-revised definition of @shape{CondClause}. Revise the design of
+revised definition of @shape{CondClause}. Update the design of
 @racket[cond-clause] and @racket[my-cond] for the new @shape{CondClause} variant
-using the strategy described in this section.
-
-Double-check that a @racket[#:bind]-clause variable is not visible in subsequent
-clauses!}
+using the strategy described in this section. Double-check that a
+@racket[#:bind]-clause variable is not visible in subsequent clauses!}
 
 
 @; ------------------------------------------------------------
@@ -524,3 +527,5 @@ partly-expanded code, distinguishing definitions from expressions, for
 example. We'll talk about that later. FIXME-REF)
 
 @; also FIXME-REF for local-expand, eg define/public and public
+
+@(close-eval the-eval)

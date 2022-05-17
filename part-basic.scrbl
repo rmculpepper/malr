@@ -6,13 +6,10 @@
           (only-in scribble/example examples)
           "styles.rkt"
           (for-label racket/base syntax/parse racket/match syntax/macro-testing
-                     racket/port racket/block rackunit))
+                     racket/port racket/block racket/string rackunit))
 
-@(define the-eval (make-base-eval))
-@(the-eval '(require (only-in racket/base [quote Quote] [syntax Syntax])
-                     rackunit syntax/macro-testing racket/port racket/block
-                     (for-syntax racket/base racket/syntax syntax/parse
-                                 (only-in racket/base [quote Quote] [syntax Syntax]))))
+@(define the-eval (make-malr-eval))
+@(the-eval '(require racket/port racket/block racket/string))
 
 @; ============================================================
 @title[#:tag "basic-shapes" #:version ""]{Basic Shapes}
@@ -56,12 +53,12 @@ have the @shape{Expr} shape. Note that the name of the pattern variable is just
 @racket[condition], not @racket[condition:expr], so that's what appears in the
 template.
 
-The @racket[expr] annotations cause the macro to automatically report a good
+The @racket[expr] annotations cause the macro to automatically report a helpful
 error for misuses of @racket[my-when] like this:
 @examples[#:eval the-eval #:label #f
 (eval:error (my-when #:truth "verity"))
 ]
-Try removing the annotations and see what the macro does on the bad example.
+Try removing the annotations and see what the macro does on this example.
 
 Here are the previous examples rephrased as tests:
 @examples[#:eval the-eval #:label #f
@@ -142,7 +139,8 @@ terms like the one above? That is, does the following work:
 @racketblock[
 (catch-output (begin (define q (quotient n 2)) (printf "q = ~s\n" q)))
 ]
-If so, ``fix it'' using @racket[#%expression].}
+If so, ``fix it'' (that is, make it more restrictive) using
+@racket[#%expression].}
 
 
 @; ------------------------------------------------------------
@@ -193,7 +191,7 @@ fails:
 ]
 
 But what about the other direction? The macro introduces a binding of a variable
-names @racket[out]; could this binding capture references to @racket[out] in the
+named @racket[out]; could this binding capture references to @racket[out] in the
 expression given to the macro? Here is an example:
 
 @examples[#:eval the-eval #:label #f
@@ -240,9 +238,17 @@ before evaluating the second expression. Here is the shape:
 For example:
 @racketblock[
 (define ls '((a 1) (b 2) (c 3)))
-(my-and-let (assoc 'b ls) entry (cadr entry)) (code:comment "expect 2")
-(my-and-let (assoc 'z ls) entry (cadr entry)) (code:comment "expect #f")
+(my-and-let entry (assoc 'b ls) (cadr entry)) (code:comment "expect 2")
+(my-and-let entry (assoc 'z ls) (cadr entry)) (code:comment "expect #f")
 ]
+
+@(define (test-my-and-let)
+   @examples[#:eval the-eval #:hidden
+   (define ls '((a 1) (b 2) (c 3)))
+   (assert (equal? (my-and-let entry (assoc 'b ls) (cadr entry)) 2))
+   (assert (equal? (my-and-let entry (assoc 'z ls) (cadr entry)) #f))
+   ])
+
 Here is an implementation:
 @examples[#:eval the-eval #:no-result
 (define-syntax my-and-let
@@ -250,6 +256,7 @@ Here is an implementation:
     [(_ x:id e1:expr e2:expr)
      #'(let ([x e1]) (if x e2 #f))]))
 ]
+@(test-my-and-let)
 
 The main point of @racket[my-and-let], though, is that if the second expression
 is evaluated, it is evaluated in an environment where the identifier is bound to
@@ -296,17 +303,15 @@ This implementation is @emph{bad} because @racket[e1] occurs in the scope of
     [(_ x:id e1:expr e2:expr)
      #'(let ()
          (define tmp e1)
-         (if x (let ([x tmp]) e2) #f))]))
+         (if tmp (let ([x tmp]) e2) #f))]))
 ]
+@(test-my-and-let)
 
 This implementation is good (although more complicated than unnecessary),
 because @racket[e1] no longer occurs in the scope of @racket[x]. But what about
 @racket[tmp]? Because of hygiene, the definition of @racket[tmp] introduced by
 the macro is not visible to @racket[e1]. (To be clear, it would be @emph{wrong}
 to write @shape{Expr{tmp}} for the shape of the first expression.)
-
-@bold{FIXME: explain this half of hygiene!}
-
 
 @exercise[#:tag "basic:if-let"]{Generalize @racket[my-and-let] to
 @racket[my-if-let], which takes an extra expression argument which is the
@@ -330,6 +335,14 @@ are some examples:
 (code:comment "expect \"<p>hello world</p>\"")
 ]
 
+@(define (test-my-match-pair)
+   @examples[#:eval the-eval #:hidden
+   (assert (equal? (my-match-pair (list 1 2 3) n ns (< n (length ns))) #t))
+   (assert (equal? (my-match-pair (list 'p "hello world") tag content
+                                  (format "<~a>~a</~a>" tag (string-join content " ") tag))
+                   "<p>hello world</p>"))
+   ])
+
 Here is one shape we could write for @racket[my-match-pair]:
 @codeblock{
 ;; (my-match-pair Expr x:Id xs:Id Expr{x,xs}) : Expr
@@ -345,6 +358,7 @@ Here's an implementation:
                [xs (cdr pair-v)])
            result))]))
 ]
+@(test-my-match-pair)
 Note that we introduce a @racket[pair-v] variable to avoid evaluating the
 @racket[pair] expression twice.
 
@@ -421,6 +435,7 @@ Here's the implementation using @racket[#:declare] instead of @racket[~var]:
                [xs (cdr pair-v)])
            result))]))
 ]
+@(test-my-match-pair)
 
 Now calling @racket[my-match-pair] raises a contract violation if the first
 expression does not produce a pair:
@@ -517,3 +532,5 @@ shape @shape{(my-match-pair Expr{x,xs} x:Id xs:Id Expr)}, that would be peculiar
 ]
 
 The same principles apply to @shape{Body} terms as well.
+
+@(close-eval the-eval)

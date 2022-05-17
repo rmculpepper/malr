@@ -8,14 +8,16 @@
           (for-label racket/base syntax/parse racket/match syntax/macro-testing
                      racket/port rackunit))
 
-@(define the-eval (make-base-eval))
-@(the-eval '(require (only-in racket/base [quote Quote] [syntax Syntax])
-                     rackunit syntax/macro-testing racket/port
-                     (for-syntax racket/base racket/syntax syntax/parse
-                                 (only-in racket/base [quote Quote] [syntax Syntax]))))
+@(define the-eval (make-malr-eval))
+@(the-eval '(require))
 
 @; ============================================================
 @title[#:tag "compound-shapes" #:version ""]{Compound Shapes}
+
+This section introduces compound shapes, including list shapes and ellipsis
+shapes. It discusses several implementation strategies for macros consuming
+ellipsis shapes. Finally, it introduces user-defined shapes.
+
 
 @; ------------------------------------------------------------
 @section[#:tag "list-shapes"]{List Shapes}
@@ -57,6 +59,12 @@ example, here is the shape of Racket's @racket[and] macro:
 ;; (and Expr ...) : Expr
 }
 
+@(define (test-my-and)
+   @examples[#:eval the-eval #:hidden
+   (assert (equal? (my-and (even? 2) (odd? 3) (even? 4)) #t))
+   (assert (equal? (my-and (even? 2) (odd? 4) (/ 0)) #f))
+   ])
+
 How can we implement our own macro with this shape? There are three basic
 implementation strategies:
 @itemlist[
@@ -80,6 +88,7 @@ recursive implementation of @racket[my-and]:
     [(_ e1:expr e:expr ...)
      #'(if e1 (my-and e ...) #f)]))
 ]
+@(test-my-and)
 
 (This isn't quite like Racket's @racket[and], which returns the value of the
 last expression if all previous expressions were true, and it evaluates the last
@@ -127,6 +136,7 @@ variable-arity @racket[list] function:
      #'(andmap (lambda (thunk) (thunk))
                (list (lambda () e) ...))]))
 ]
+@(test-my-and)
 
 Note the use of @racket[(lambda () e) ...] in the template. The pattern variable
 @racket[e] occurred in front of ellipses in the pattern, so it must be used in
@@ -173,6 +183,7 @@ uses a recursive compile-time helper function:
     [(_ e:expr ...)
      (my-and-helper (syntax->list #'(e ...)))]))
 ]
+@(test-my-and)
 
 The compile-time @racket[my-and-helper] function takes a list of syntax objects
 representing expressions and combines them into a single syntax object
@@ -228,6 +239,7 @@ have eliminated the recursion) directly in the macro:
             #'#t
             (syntax->list #'(e ...)))]))
 ]
+@(test-my-and)
 
 We can still use @racket[phase1-eval] to explore more complicated compile-time
 expressions:
@@ -250,6 +262,13 @@ of a simplified version of @racket[cond] (it doesn't support @racket[=>] and
 ;; (my-cond [Expr Expr] ...) : Expr
 }
 
+@(define (test-my-cond1)
+   @examples[#:eval the-eval #:hidden
+   (assert (equal? (my-cond [(even? 1) 'no] [(odd? 3) 'yes]) 'yes))
+   (assert (equal? (my-cond [(even? 2) 'ok] [(/ 0) 'whoops]) 'ok))
+   (assert (equal? (my-cond [#f 1] [#f 2]) (void)))
+   ])
+
 Here's a recursive implementation:
 
 @examples[#:eval the-eval #:no-result
@@ -263,6 +282,7 @@ Here's a recursive implementation:
            result1
            (my-cond more ...))]))
 ]
+@(test-my-cond1)
 
 Here is an implementation using a recursive run-time helper function:
 @examples[#:eval the-eval #:no-result
@@ -282,6 +302,7 @@ Here is an implementation using a recursive run-time helper function:
                           (cdr result-thunks)))
       (void)))
 ]
+@(test-my-cond1)
 
 Here is an implementation using a recursive helper @emph{macro} --- Racket's
 variadic @racket[or] macro. It also relies on fact that @racket[and] and
@@ -297,6 +318,7 @@ specific true value as their result when appropriate.
             ...
             void))]))
 ]
+@(test-my-cond1)
 
 @exercise[#:tag "compound:cond-ct"]{Implement @racket[my-cond] using a
 compile-time helper function that takes a list of condition expressions and a
@@ -378,6 +400,7 @@ pattern variable annotated with the new syntax class
            c.result
            (my-cond more ...))]))
 ]
+@(test-my-cond1)
 
 In addition to improved organization, another benefit of defining
 @racket[cond-clause] as a syntax class is that @racket[my-cond] now
@@ -404,16 +427,38 @@ each step? That is:
            c.result
            (my-cond more ...))]))
 ]
+@(test-my-cond1)
 
 It can lead to earlier detection of syntax errors and better error messages,
 because the error is reported in terms of the original expression the user
 wrote, as opposed to one created by the macro for recursion. The cost is that
 the syntax-class check is performed again and again on later arguments; the
 number of @racket[cond-clause] checks performed by this version is quadratic in
-the number of clauses it originally receives. There is no single right
-trade-off. One alternative is to make the public @racket[my-cond] macro check
-all of the clauses and then expand into a private recursive helper macro that
-only parses one clause at a time.
+the number of clauses it originally receives. One solution is to make the public
+@racket[my-cond] macro check all of the clauses and then expand into a private
+recursive helper macro that only interprets one clause at a time.
+
+@examples[#:eval the-eval #:no-result
+(code:comment "(my-cond CondClause ...) : Expr")
+(define-syntax my-cond
+  (syntax-parser
+    [(_ c:cond-clause ...)
+     #'(my-cond* c ...)]))
+(code:comment "(my-cond* CondClause ...) : Expr")
+(define-syntax my-cond*
+  (syntax-parser
+    [(_)
+     #'(void)]
+    [(_ c:cond-clause more ...)
+     #'(if c.condition
+           c.result
+           (my-cond* more ...))]))
+]
+@(test-my-cond1)
+
+This tension between a syntax class's two purposes, validation and
+interpretation, appears in a more difficult form in @secref["enum-shapes"].
+
 
 @exercise[#:tag "compound:my-evcase1"]{Design a macro @racket[my-evcase1] with
 the following shape:
@@ -433,3 +478,5 @@ expression is the result of the macro. If no clause matches, the result is
 ]
 
 Hint: You might want to use a helper macro.}
+
+@(close-eval the-eval)

@@ -41,6 +41,7 @@
          exercise-ref
          exercise-number-ref
          solution-section
+         make-malr-eval
          cc-footer)
 
 (define malr-version "v2-draft-01")
@@ -186,3 +187,17 @@
   @elem{@llink[@image[local-license-img]{Creative Commons License}]
         This work by Ryan Culpepper is licensed under a
         @llink[@elem{@license-name License}].})
+
+(define (make-malr-eval #:assert? [assert? #t])
+  (define the-eval (make-base-eval))
+  (the-eval '(require (only-in racket/base [quote Quote] [syntax Syntax])
+                      rackunit syntax/macro-testing racket/block
+                      (for-syntax racket/base racket/syntax syntax/parse syntax/datum
+                                  (only-in racket/base [quote Quote] [syntax Syntax]))))
+  (when assert?
+    (the-eval '(define-syntax assert
+                 (syntax-parser
+                   [(_ condition:expr)
+                    #'(unless condition
+                        (error 'assert "failed: ~s" (quote condition)))]))))
+  the-eval)
