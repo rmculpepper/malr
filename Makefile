@@ -1,7 +1,10 @@
-SCRIBARGS=--dest build --redirect-main https://docs.racket-lang.org/ +m
+SCRIBARGS=--redirect-main https://docs.racket-lang.org/ +m
 
 all: 
-	raco scribble --htmls $(SCRIBARGS) malr.scrbl
+	raco scribble --htmls --dest build $(SCRIBARGS) malr.scrbl
+
+onepage:
+	raco scribble --html --dest build/onepage $(SCRIBARGS) malr.scrbl
 
 pdf: 
-	raco scribble --pdf $(SCRIBARGS) malr.scrbl
+	raco scribble --pdf --dest build $(SCRIBARGS) malr.scrbl
