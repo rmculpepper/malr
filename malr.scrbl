@@ -21,18 +21,9 @@
 Add to existing sections:
 - keep macros simple: use run-time helpers
 - SimpleExpr shape ?
-- Give names to strategy components
-  - case analysis with structural recursion
-  - run-time helper function
-  - compile-time helper function
-  - attributes in stxclass representing interp
-  - (private/public) helper macros, decomposition
-  - Maybe add "Recap" section, give names there instead
-    of in main text?
 - Exercises
   - generalize cond to take "body list" (intro terminology,
     "body term" vs "body list" ??)
-  - variant of cond with clause [Expr #:as Id Body ...+]
   - and+ (with #:do clauses)
   - (my-match-list Expr (Id ...) Expr) : Expr
   - exercise recap
