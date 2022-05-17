@@ -33,7 +33,7 @@ Next sections:
 - Datum shape, quasiquote
   - quote / quote-syntax on prefab structs!
   - quasiquote example?
-- Static shape (need example!)
+- Static shape (use simple version of regexp example?)
 
 - breaking hygiene (hash-view)
 - compile-time API
