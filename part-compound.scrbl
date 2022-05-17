@@ -380,7 +380,7 @@ My convention is to use capitalized names such as @shape{Expr}, @shape{Id}, and
 serves as a reminder that syntax classes represent some but not all of the
 meaning of shapes, just like Racket's contracts capture some but not all of the
 meaning of types. The syntax class checks that terms have the right structure,
-and the attribute names hint at their intended interpretation, but the syntax
+and its attribute names hint at their intended interpretation, but the syntax
 class cannot enforce that interpretation.
 
 We update the macro's shape, and we update the implementation's pattern to use a
