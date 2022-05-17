@@ -31,7 +31,7 @@ Add to existing sections:
     - If you didn't follow the design recipe, you missed the point! Fail!
 
 Next sections:
-- Datum shape, quasiquote
+- Datum shape, quasiquote (continue with my-evcase => my-case)
   - quote / quote-syntax on prefab structs!
   - quasiquote example?
 - Static shape (use simple version of regexp example?)
