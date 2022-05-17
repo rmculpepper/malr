@@ -16,7 +16,7 @@
 
 This section introduces compound shapes, including list shapes and ellipsis
 shapes. It discusses several implementation strategies for macros consuming
-ellipsis shapes. Finally, it introduces user-defined shapes.
+ellipsis shapes.
 
 
 @; ------------------------------------------------------------
@@ -320,6 +320,7 @@ specific true value as their result when appropriate.
 ]
 @(test-my-cond1)
 
+
 @exercise[#:tag "compound:cond-ct"]{Implement @racket[my-cond] using a
 compile-time helper function that takes a list of condition expressions and a
 list of result expressions:
@@ -329,147 +330,15 @@ list of result expressions:
 }
 Hint: Racket's @racket[foldr] function is variadic.}
 
-
-@; ------------------------------------------------------------
-@section[#:tag "shape-defs"]{User-Defined Shapes}
-
-Consider the shape we've given to @racket[my-cond]:
-
-@codeblock{
-;; (my-cond [Expr Expr] ...) : Expr
-}
-
-This tells us the structure of @racket[my-cond]'s arguments, but it gives us no
-hook upon which to hang a description of the arguments' interpretation. Let's
-give it a name:
-
-@codeblock{
-;; CondClause ::= [Expr Expr]   -- represent condition, result
-}
-
-Now when we describe the behavior of @racket[my-cond], we can separate out the
-structure and interpretation of @shape{CondClause}s from the discussion of
-@racket[my-cond] itself.
-@itemlist[
-
-@item{The @racket[my-cond] form takes a sequence of @shape{CondClauses}, and
-that it tries each @shape{CondClause} in order until one is selected, and the
-result of the @racket[my-cond] expression is the result of the selected
-@shape{CondClause}, or @racket[(void)] if none was selected.}
-
-@item{A @shape{CondClause} consists of two expressions. The first represents a
-condition; if it evaluates to a true value, then the clause is selected. The
-second expression determines the clause's result.}
-
-]
-
-I typically write something like the terse comment above in the source code and
-include the longer, more precise version in the documentation.
-
-We can also define a syntax class corresponding to the new shape:
-@examples[#:eval the-eval #:no-result
-(begin-for-syntax
-  (code:comment "CondClause ::= [Expr Expr]   -- represent condition, result")
-  (define-syntax-class cond-clause
-    #:attributes (condition result)
-    (pattern (condition:expr result:expr))))
-]
-My convention is to use capitalized names such as @shape{Expr}, @shape{Id}, and
-@shape{CondClause} for shapes and lower-case names such as @racket[expr],
-@racket[id], and @racket[cond-clause] for syntax classes. Distinguishing them
-serves as a reminder that syntax classes represent some but not all of the
-meaning of shapes, just like Racket's contracts capture some but not all of the
-meaning of types. The syntax class checks that terms have the right structure,
-and its attribute names hint at their intended interpretation, but the syntax
-class cannot enforce that interpretation.
-
-We update the macro's shape, and we update the implementation's pattern to use a
-pattern variable annotated with the new syntax class
-(@racket[c:cond-clause]). In the template, we refer to the pattern variable's
-@emph{attributes} defined by the syntax class (@racket[c.condition] and
-@racket[c.result]).
-
-@examples[#:eval the-eval #:no-result
-(code:comment "(my-cond CondClause ...) : Expr")
-(define-syntax my-cond
-  (syntax-parser
-    [(_)
-     #'(void)]
-    [(_ c:cond-clause more ...)
-     #'(if c.condition
-           c.result
-           (my-cond more ...))]))
-]
-@(test-my-cond1)
-
-In addition to improved organization, another benefit of defining
-@racket[cond-clause] as a syntax class is that @racket[my-cond] now
-automatically uses @racket[cond-clause] to help explain syntax errors. For
-example:
-
-@examples[#:eval the-eval #:label #f
-(eval:error (my-cond 5))
-(eval:error (my-cond [#t #:whoops]))
-]
-
-In the implementation above, should we also annotate @racket[more] to check that
-all of the arguments are clauses, instead of only checking the first clause at
-each step? That is:
-
-@examples[#:eval the-eval #:no-result
-(code:comment "(my-cond CondClause ...) : Expr")
-(define-syntax my-cond
-  (syntax-parser
-    [(_)
-     #'(void)]
-    [(_ c:cond-clause more:cond-clause ...)
-     #'(if c.condition
-           c.result
-           (my-cond more ...))]))
-]
-@(test-my-cond1)
-
-It can lead to earlier detection of syntax errors and better error messages,
-because the error is reported in terms of the original expression the user
-wrote, as opposed to one created by the macro for recursion. The cost is that
-the syntax-class check is performed again and again on later arguments; the
-number of @racket[cond-clause] checks performed by this version is quadratic in
-the number of clauses it originally receives. One solution is to make the public
-@racket[my-cond] macro check all of the clauses and then expand into a private
-recursive helper macro that only interprets one clause at a time.
-
-@examples[#:eval the-eval #:no-result
-(code:comment "(my-cond CondClause ...) : Expr")
-(define-syntax my-cond
-  (syntax-parser
-    [(_ c:cond-clause ...)
-     #'(my-cond* c ...)]))
-(code:comment "(my-cond* CondClause ...) : Expr")
-(define-syntax my-cond*
-  (syntax-parser
-    [(_)
-     #'(void)]
-    [(_ c:cond-clause more ...)
-     #'(if c.condition
-           c.result
-           (my-cond* more ...))]))
-]
-@(test-my-cond1)
-
-This tension between a syntax class's two purposes, validation and
-interpretation, appears in a more difficult form in @secref["enum-shapes"].
-
-
 @exercise[#:tag "compound:my-evcase1"]{Design a macro @racket[my-evcase1] with
 the following shape:
 @codeblock{
-;; (my-evcase1 Expr EC1Clause ...) : Expr
-;; where EC1Clause ::= [Expr Expr]  -- comparison value, result
+;; (my-evcase1 Expr [Expr Expr] ...) : Expr
 }
-Each clause is tried until the clause's first expression of the clause produces a value
-equal to the value of the macro's initial argument; that clause's second
-expression is the result of the macro. If no clause matches, the result is
-@racket[(void)].
+The macro evaluates its first argument to get the value to match. Then it tries
+each clause until one is selected. A clause is selected if its first expression
+produces a value equal to the value to match; that clause's second expression is
+the result of the macro. If no clause matches, the result is @racket[(void)].
 
 @racketblock[
 (my-evcase1 (begin (printf "got a coin!\n") (* 5 5))
