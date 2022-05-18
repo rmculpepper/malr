@@ -25,9 +25,11 @@ ellipsis shapes.
 The main kind of @emph{compound shape} is the @emph{list shape}, describing list
 terms of fixed or varying length. Actually, we have already been using list
 shapes to describe a macro's arguments: a macro transformer function in fact
-receives exactly one argument, corresponding to the whole macro use
-term. Generally, that is a list term with the macro identifier first and the
+receives exactly one argument, corresponding to the whole macro-use
+term. Typically, that is a list term with the macro identifier first and the
 arguments making up the rest of the list.
+
+@; FIXME: other kinds of macro uses (id macro, set! macro)
 
 We can add additional levels of grouping to the arguments. For example, here's a
 variant of @racket[my-and-let] that groups the identifier with the expression
@@ -330,6 +332,16 @@ list of result expressions:
 }
 Hint: Racket's @racket[foldr] function is variadic.}
 
+@exercise[#:tag "compound:my-and-let2"]{Generalize @racket[my-and-let] so that
+it takes a list of identifier-and-expression clauses. That is, it should have
+the following shape:
+@codeblock{
+;; (my-and-let ([Id Expr] ...) Expr) : Expr
+}
+The scope of each identifier includes all subsequent clauses and the final
+expression. Implement the macro either as a recursive macro or by using a
+compile-time helper function.}
+
 @exercise[#:tag "compound:my-evcase1"]{Design a macro @racket[my-evcase1] with
 the following shape:
 @codeblock{
@@ -344,8 +356,6 @@ the result of the macro. If no clause matches, the result is @racket[(void)].
 (my-evcase1 (begin (printf "got a coin!\n") (* 5 5))
   [5 "nickel"] [10 "dime"] [25 "quarter"] [(/ 0) "infinite money!"])
 (code:comment "expect print once, result = \"quarter\"")
-]
-
-Hint: You might want to use a helper macro.}
+]}
 
 @(close-eval the-eval)

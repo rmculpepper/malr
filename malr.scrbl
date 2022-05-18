@@ -16,6 +16,7 @@
 @include-section["part-defshape.scrbl"]
 @include-section["part-enum.scrbl"]
 @include-section["part-multi.scrbl"]
+@include-section["part-little.scrbl"]
 
 @;{
 

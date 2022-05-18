@@ -14,24 +14,23 @@
 @; ============================================================
 @title[#:tag "basic-shapes" #:version ""]{Basic Shapes}
 
-This section introduces the more important basic shapes for macro design.
+This section introduces the most important basic shapes for macro design.
 
 
 @; ------------------------------------------------------------
 @section[#:tag "basic-expr"]{The Expr (Expression) Shape}
 
-The @shape{Expr} shape contains all terms except for keywords (like
-@racket[#:when]). In principle, there are ways to make keywords legal Racket
-expressions (by shadowing Racket's @racket[#%datum] binding), but pragmatically
-it is useful to consider expressions and keywords disjoint, so that macros can
-detect and report misuses of keyword arguments.
-
 The @shape{Expr} shape represents the intention to interpret the term as a
-Racket expression by putting it in a Racket expression context.
+Racket expression by putting it in an expression context. In general, a macro
+cannot check a term and decide whether it is a valid expression; only the Racket
+macro expander can do that. As a pragmatic approximation, the @shape{Expr} shape
+and its associated @racket[expr] syntax class exclude only keyword terms, like
+@racket[#:when], so that macros can detect and report misuses of keyword
+arguments.
 
-For example, let's implement @racket[my-when], a simple version of Racket's
+As an example, let's implement @racket[my-when], a simple version of Racket's
 @racket[when] form. It takes two expressions; the first is the condition, and
-the second is the result to be evaluated only if the condition is true. Here's
+the second is the result to be evaluated only if the condition is true. Here is
 the shape:
 @codeblock{
 ;; (my-when Expr Expr) : Expr
@@ -48,19 +47,12 @@ Here's the implementation:
     [(_ condition:expr result:expr)
      #'(if condition result (void))]))
 ]
-Here we use the @racket[expr] syntax class to annotate pattern variables that
-have the @shape{Expr} shape. Note that the name of the pattern variable is just
-@racket[condition], not @racket[condition:expr], so that's what appears in the
-template.
+We use the @racket[expr] syntax class to annotate pattern variables that have
+the @shape{Expr} shape. Note that the names of the pattern variables do not
+include the @litchar{:expr} annotation, so in the syntax template we simply
+write @racket[condition] and @racket[result].
 
-The @racket[expr] annotations cause the macro to automatically report a helpful
-error for misuses of @racket[my-when] like this:
-@examples[#:eval the-eval #:label #f
-(eval:error (my-when #:truth "verity"))
-]
-Try removing the annotations and see what the macro does on this example.
-
-Here are the previous examples rephrased as tests:
+To test the macro, we rephrase the previous examples as tests:
 @examples[#:eval the-eval #:label #f
 (check-equal? (with-output-to-string
                 (lambda () (my-when (odd? 5) (printf "odd!\n"))))
@@ -73,6 +65,19 @@ Here are the previous examples rephrased as tests:
              (convert-syntax-error
               (my-when #:truth "verity"))))
 ]
+
+@; ----------------------------------------
+@exercise[#:tag "basic:shape-violation"]{Each of the following uses of
+@racket[my-when] violates its declared shape:
+@itemlist[
+@item{@racket[(my-when #:true "verity")]}
+@item{@racket[(my-when 'ok (define ns '(1 2 3)) (length ns))]}
+@item{@racket[(my-when (odd? 1) (begin (define one 1) (+ one one)))]}
+@item{@racket[(my-when #f (+ #:one #:two))]}
+]
+Why? Which examples are rejected by the @racket[my-when] macro itself, and
+what happens to the other examples? What difference does it make if you remove
+the @racket[expr] syntax class annotations from the macro definition?}
 
 @exercise[#:tag "basic:my-unless"]{Design a macro @racket[my-unless] like
 @racket[my-when], except that it negates the condition.}
@@ -88,9 +93,9 @@ output written by the expression. For example:
 @; ------------------------------------------------------------
 @section[#:tag "basic-body"]{The Body Shape}
 
-The @shape{Body} shape is like @shape{Expr} --- it contains all terms except
-keywords --- except that it indicates that the term will be used in a body
-context, so definitions are allowed in addition to expressions.
+The @shape{Body} shape is like @shape{Expr} except that it indicates that the
+term will be used in a body context, so definitions are allowed in addition to
+expressions.
 
 There is no distinct syntax class for @shape{Body}; just use @racket[expr].
 
@@ -110,15 +115,24 @@ Here is an example allowed by the new shape but not by the previous shape:
   (begin (define q (quotient n 2)) (printf "q = ~s\n" q)))
 ]
 
-Given the new shape, the previous implementation would be @emph{wrong}, since it
+Given the new shape, the previous implementation would be wrong, since it
 does not place its second argument in a body context. Here is an updated
 implementation:
 @examples[#:eval the-eval #:no-result
 (define-syntax my-when
   (syntax-parser
     [(_ condition:expr result-body:expr)
-     #'(if condition (let () result-body) (void))]))
+     #'(if condition (block result-body) (void))]))
 ]
+@examples[#:eval the-eval #:hidden
+(assert (equal?
+         (my-when (odd? 37)
+           (begin (define q (quotient 37 2)) q))
+         18))
+(assert (equal? (my-when #t (define x 1)) (void)))
+(assert (equal? (my-when #f (begin (define x 1) (/ 0))) (void)))
+]
+
 That is, use @racket[(block _)] to wrap a @shape{Body} so it can be used in a
 strict @shape{Expr} position. It is also common to use a @racket[(let () _)]
 wrapper, but that does not work for all @shape{Body} terms; it requires that the
@@ -135,7 +149,7 @@ strict @shape{Expr} position.
 
 @exercise[#:tag "basic:catch-output-expr"]{Check your solution to
 @exercise-ref["basic:catch-output"]; does the macro also accept @shape{Body}
-terms like the one above? That is, does the following work:
+terms like the one above? That is, does the following work?
 @racketblock[
 (catch-output (begin (define q (quotient n 2)) (printf "q = ~s\n" q)))
 ]
@@ -214,41 +228,38 @@ reference}.}
 
 ]
 Racket macros are hygienic by default. In FIXME-REF we will discuss a few
-situations when it is useful to break hygiene, and we will show how to write
-some unhygienic macros.
+situations when it is useful to break hygiene.
 
 
 @; ------------------------------------------------------------
 @section[#:tag "basic-id"]{The Id (Identifier) Shape}
 
-The @shape{Id} shape contains all identifiers.
+The @shape{Id} shape contains all identifier terms.
 
 The @shape{Id} shape usually implies that the identifier will be used as the
-binder for a variable, macro, or other sort of name.
+name for a variable, macro, or other sort of binding. In that case, we say the
+identifer is used as a @emph{binder}.
 
 Use the @racket[id] syntax class for pattern variables whose shape is @shape{Id}.
 
 Let's write a macro @racket[my-and-let] that acts like @racket[and] with two
 expressions but binds the result of the first expression to the given identifier
 before evaluating the second expression. Here is the shape:
-
 @codeblock{
 ;; (my-and-let Id Expr Expr) : Expr
 }
-For example:
+Here are some examples:
 @racketblock[
 (define ls '((a 1) (b 2) (c 3)))
 (my-and-let entry (assoc 'b ls) (cadr entry)) (code:comment "expect 2")
 (my-and-let entry (assoc 'z ls) (cadr entry)) (code:comment "expect #f")
 ]
-
 @(define (test-my-and-let)
    @examples[#:eval the-eval #:hidden
    (define ls '((a 1) (b 2) (c 3)))
    (assert (equal? (my-and-let entry (assoc 'b ls) (cadr entry)) 2))
    (assert (equal? (my-and-let entry (assoc 'z ls) (cadr entry)) #f))
    ])
-
 Here is an implementation:
 @examples[#:eval the-eval #:no-result
 (define-syntax my-and-let
@@ -270,19 +281,19 @@ the name of the pattern variable, but it makes sense to use the same name here.}
 
 @item{Add an @emph{environment annotation} to the second @shape{Expr} indicating
 that it's in the scope of a variable whose name is whatever actual identifier
-@racket[x] refers to: @shape{Expr{x}}.}
+@shape{x} refers to: @shape{Expr{x}}.}
 
 ]
 
-Here's the updated shape for @racket[my-and-let]:
+Here is the updated shape for @racket[my-and-let]:
 @codeblock{
 ;; (my-and-let x:Id Expr Expr{x}) : Expr
 }
 
 We can check the implementation: @racket[e1] does not occur in the scope of
-@racket[x], and @racket[e2] does occur in the scope of @racket[x]. Consider the
-following definition:
+@racket[x], and @racket[e2] does occur in the scope of @racket[x].
 
+Here is another implementation:
 @racketblock[
 (code:comment "(my-and-let x:Id Expr Expr{x}) : Expr")
 (define-syntax my-and-let
@@ -292,10 +303,10 @@ following definition:
          (define x e1)    (code:comment "BAD")
          (if x e2 #f))]))
 ]
+This implementation is @emph{wrong}, because @racket[e1] occurs in the scope of
+@racket[x], but it should not.
 
-This implementation is @emph{bad} because @racket[e1] occurs in the scope of
-@racket[x], even though it isn't supposed to. Here's another version:
-
+Here is another version:
 @examples[#:eval the-eval #:no-result
 (code:comment "(my-and-let x:Id Expr Expr{x}) : Expr")
 (define-syntax my-and-let
@@ -359,8 +370,9 @@ Here's an implementation:
            result))]))
 ]
 @(test-my-match-pair)
-Note that we introduce a @racket[pair-v] variable to avoid evaluating the
-@racket[pair] expression twice.
+Note that we introduce a @emph{temporary variable} (or @emph{auxiliary
+variable}) named @racket[pair-v] to avoid evaluating the @racket[pair]
+expression twice.
 
 We could add more information to the shape. The macro expects the first argument
 to be a pair, and whatever types of values the pair contains become the types of
@@ -373,8 +385,8 @@ I've written @shape{Expr[(cons T1 T2)]} for the shape of expressions of type
 (values made with the @racket[cons] constructor) whose first component has type
 @type{T1} and whose second component has type @type{T2}. The second expression's
 environment annotation includes the types of the variables. This macro shape is
-polymorphic; you can imagine an implicit @shape{forall (T1, T2)} at the
-beginning of the declaration.
+polymorphic; there is an implicit @shape{forall (T1, T2)} at the beginning of
+the declaration.
 
 The result of the macro is the result of the second expression, so the type of
 the macro is the same as the type of the second expression. We could add that
@@ -385,20 +397,19 @@ to the shape too:
 Now the second @shape{Expr} has both a environment annotation and a type
 annotation. 
 
-Note: When I say ``type'' here, I'm not talking about Typed Racket or some other
-typed language implemented in Racket. Nor do I mean that there's a super-secret
-type checker hidden in Racket on the top shelf next to the flight simulator. I'm
-using ``type'' to mean a semi-formal, unchecked description of the behavior of
-expressions and macros that manipulate them. In this case, the shape declaration
-for @racket[my-match-pair] warns the user that the first argument must produce a
-pair. If it doesn't, the user has failed their obligations, and the macro may do
-bad things.
+When I say ``type'' here, I'm not talking about Typed Racket or some other typed
+language implemented in Racket, nor do I mean that there's a super-secret type
+checker hidden somewhere in Racket next to a flight simulator. By ``type'' I
+mean a semi-formal, unchecked description of expressions and macros that
+manipulate them. In this case, the shape declaration for @racket[my-match-pair]
+warns the user that the first argument must produce a pair. If it doesn't, the
+user has failed their obligations, and the macro may do bad things.
 
 Of course, given human limitations, we would prefer the macro not to do bad
 things. Ideally, the macro definition and macro uses could be statically checked
 for compliance with shape declarations, but Racket does not not implement such a
-checker for macros. (It's complicated.) At least, though, the macro could use
-@emph{contracts} to enforce approximations of the types of expression arguments.
+checker for macros. (It's complicated.) At least, though, the macro enforce
+approximations of the types of expression arguments using @emph{contracts}.
 
 Use the @racket[expr/c] syntax class for a pattern variable whose shape is
 @shape{Expr[Type]} when @type{Type} has a useful contract approximation. In this
@@ -408,9 +419,9 @@ example, the type @type{(cons T1 T2)} has a useful contract approximation
 @litchar{:} notation; you must use @racket[~var] or @racket[#:declare]
 instead. The argument is a syntax object representing the contract to apply to
 the expression. (It is @racket[#'pair?] instead of @racket[pair?] because the
-contract check is performed at run time.) Finally, use the @racket[c]
-("contracted") @emph{attribute} of the pattern variable to get the
-contract-wrapped version of the expression. Here's the contract-checked version
+contract check is performed at run time.) In the syntax template, use the
+@racket[c] ("contracted") @emph{attribute} of the pattern variable to get the
+expression with a contract-checking wrapper. Here's the contract-checked version
 of the macro:
 
 @examples[#:eval the-eval #:no-result
@@ -418,7 +429,7 @@ of the macro:
 (define-syntax my-match-pair
   (syntax-parser
     [(_ (~var pair (expr/c #'pair?)) x:id xs:id result:expr)
-     #'(let ([pair-v pair.c])
+     #'(let ([pair-v pair.c])   (code:comment "Important: pair.c, not pair")
          (let ([x (car pair-v)]
                [xs (cdr pair-v)])
            result))]))
@@ -430,7 +441,7 @@ Here's the implementation using @racket[#:declare] instead of @racket[~var]:
   (syntax-parser
     [(_ pair x:id xs:id result:expr)
      #:declare pair (expr/c #'pair?)
-     #'(let ([pair-v pair.c])
+     #'(let ([pair-v pair.c])   (code:comment "Important: pair.c, not pair")
          (let ([x (car pair-v)]
                [xs (cdr pair-v)])
            result))]))
@@ -438,7 +449,7 @@ Here's the implementation using @racket[#:declare] instead of @racket[~var]:
 @(test-my-match-pair)
 
 Now calling @racket[my-match-pair] raises a contract violation if the first
-expression does not produce a pair:
+expression does not produce a pair. For example:
 @examples[#:eval the-eval #:label #f
 (eval:error (my-match-pair 'not-a-pair n ns (void)))
 ]
@@ -450,7 +461,7 @@ idiomatic for Racket conditional macros).}
 @; ------------------------------------------------------------
 @section[#:tag "basic-expr-uses"]{Uses of Expressions}
 
-What can a macro do with an expression (@shape{Expr})?
+In general, what can a macro do with an expression (@shape{Expr})?
 @itemlist[
 
 @item{It can use the value (or values) that the expression evaluates to. For
@@ -472,9 +483,15 @@ bindings, as we did in @racket[my-and-let] and @racket[my-match-pair].}
 
 ]
 
-There are also some restrictions on what macros can do with expressions:
+There are some restrictions on what macros can do and should do with expressions:
 
 @itemlist[
+
+@item{@bold{A macro cannot get the value of the expression at compile time.} The
+expression represents computation that will occur later, at run time, perhaps on
+different machines, perhaps many times with different values in the run-time
+environment. A macro can only interact with an expression's value by producing
+code to process the value at run time.}
 
 @item{@bold{A macro must not look at the contents of the expression itself.}
 Expressions are macro-extensible, so there is no grammar to guide case
@@ -484,7 +501,7 @@ duplicate its work ``just a little'', you are likely to make unjustified
 assumptions and get it wrong. For example, an expression consisting of a
 self-quoting datum is not necessarily a constant, or even free of side effects;
 it might have a nonstandard @racket[#%datum] binding, which could give it any
-behavior at all. Likewise, a single identifier is not necessarily a variable
+behavior at all. Likewise, a plain identifier is not necessarily a variable
 reference; it might be an identifier macro, or it might have a nonstandard
 @racket[#%top] binding.
 
@@ -498,19 +515,15 @@ slow compilation and bloated compiled code. The increases to both time and code
 size are potentially exponential, if duplicated expressions themselves contain
 macros that duplicate expressions and so on.
 
-If you want to evaluate the same expression multiple times, then thunk it and
-bind a temporary variable to the thunk and then use the variable to apply the
-thunk multiple times.
+If you need to refer to an expression's value multiple times, bind it to a
+temporary variable. If you need to evaluate the same expression multiple times,
+then bind a temporary variable to a thunk containing the expression and then
+apply the thunk multiple times.
 
 One exception to this rule is if the macro knows that the expression is
-``simple'', like a variable reference or a quoted constant. For example, when a
-public macro binds a temporary variable to an argument expression and then calls
-a private helper macro with the temporary variable, the helper macro can
-duplicate the variable reference freely. Note that in this example, the private
-macro must know that the public macro gives it a simple expression; it cannot
-check whether an expression of unknown origin is simple (see the previous
-restriction).
-}
+``simple'', like a variable reference or quoted constant, because the macro is
+private and all of its use sites can be inspected. We'll discuss this case in
+@secref["simple-expr"].}
 
 @item{In general, a macro should evaluate expressions in the same order that
 they appear (that is, ``left to right''), unless it has a reason to do
@@ -524,10 +537,10 @@ non-idiomatic syntax design to put the condition expression second and the
 result expression first.
 
 Similarly, the scope of an identifier is generally somewhere to the right of the
-identifier itself. For example, in both @racket[my-and-let] and
-@racket[my-match-pair], the identifiers are in scope in the following
-expression. If we swapped @racket[my-match-pair]'s expressions, so it had the
-shape @shape{(my-match-pair Expr{x,xs} x:Id xs:Id Expr)}, that would be peculiar.}
+identifier itself. For example, in @racket[my-match-pair], the identifiers are
+in scope in the following expression. If we swapped @racket[my-match-pair]'s
+expressions, so it had the shape @shape{(my-match-pair Expr{x,xs} x:Id xs:Id
+Expr)}, that would not be idiomatic.}
 
 ]
 

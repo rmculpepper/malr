@@ -29,6 +29,7 @@
          STAR
          expr_
          fail_
+         datum_
 
          malr-version
          tech/reference
@@ -45,6 +46,8 @@
          cc-footer)
 
 (define malr-version "v2-draft-01")
+
+(define draft-mode? #t)
 
 (define-syntax-rule (schemekw x) (schemekeywordfont (symbol->string 'x)))
 (define-syntax-rule (schemevar x) (schemevarfont (symbol->string 'x)))
@@ -83,6 +86,8 @@
   (make-element-id-transformer (lambda _ #'(racketidfont "expr"))))
 (define-syntax fail_
   (make-element-id-transformer (lambda _ #'(racketidfont "fail"))))
+(define-syntax datum_
+  (make-element-id-transformer (lambda _ #'(racketidfont "datum"))))
 
 ;; ----
 
@@ -133,7 +138,8 @@
   (define header (bold "Exercise" ~ (number->string exnum) stars-elem maybe-soln-link ": "))
   (define header* (if tag (make-target-element #f header (make-exercise-tag tag)) header))
   (when tag (hash-set! exercise-tags tag exnum))
-  (apply nested header* pre-content))
+  (list (if (and draft-mode? tag) (margin-note (format "tag = ~s" tag)) null)
+        (apply nested header* pre-content)))
 
 (define STAR (make-string 1 (integer->char 9733)))
 
