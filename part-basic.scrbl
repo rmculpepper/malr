@@ -49,7 +49,7 @@ Here's the implementation:
 ]
 We use the @racket[expr] syntax class to annotate pattern variables that have
 the @shape{Expr} shape. Note that the names of the pattern variables do not
-include the @litchar{:expr} annotation, so in the syntax template we simply
+include the @racket[:expr] annotation, so in the syntax template we simply
 write @racket[condition] and @racket[result].
 
 To test the macro, we rephrase the previous examples as tests:

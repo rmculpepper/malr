@@ -34,6 +34,10 @@
          fail_
          datum_
 
+         (rename-out [malr-title title]
+                     [malr-section section]
+                     [malr-subsection subsection])
+
          malr-version
          tech/reference
          tech/guide
@@ -48,13 +52,25 @@
          make-malr-eval
          cc-footer)
 
+(define draft-mode? #t)
+
 (define malr-version
   (let ([now (current-date)])
     (define (~02r n) (~r n #:min-width 2 #:pad-string "0"))
     (apply format "2-~a~a.~a" ;; (~02r (modulo (date-year now) 100))
            (map ~02r (list (date-month now) (date-day now) (date-hour now))))))
 
-(define draft-mode? #t)
+(define (malr-title #:style [style #f] #:tag [tag #f] #:version [vers malr-version] . pre-content)
+  (list (apply title #:style style #:tag tag #:version vers pre-content)
+        (tag-note tag)))
+
+(define (malr-section #:tag [tag #f] . pre-content)
+  (list (apply section #:tag tag pre-content)
+        (tag-note tag)))
+
+(define (malr-subsection #:tag [tag #f] . pre-content)
+  (list (apply subsection #:tag tag pre-content)
+        (tag-note tag)))
 
 (define-syntax-rule (schemekw x) (schemekeywordfont (symbol->string 'x)))
 (define-syntax-rule (schemevar x) (schemevarfont (symbol->string 'x)))
@@ -151,8 +167,10 @@
   (define header (bold "Exercise" ~ (number->string exnum) stars-elem maybe-soln-link ": "))
   (define header* (if tag (make-target-element #f header (make-exercise-tag tag)) header))
   (when tag (hash-set! exercise-tags tag exnum))
-  (list (if (and draft-mode? tag) (margin-note (format "tag = ~s" tag)) null)
-        (apply nested header* pre-content)))
+  (list (tag-note tag) (apply nested header* pre-content)))
+
+(define (tag-note tag)
+  (if (and draft-mode? tag) (margin-note (format "tag = ~s" tag)) null))
 
 (define STAR (make-string 1 (integer->char 9733)))
 
