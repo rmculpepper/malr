@@ -15,8 +15,6 @@
 @title[#:tag "little-languages" #:version ""]{Little Languages}
 
 
-
-
 @; ------------------------------------------------------------
 @section[#:tag "datum-shape"]{The Datum Shape}
 

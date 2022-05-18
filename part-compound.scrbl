@@ -143,8 +143,8 @@ variable-arity @racket[list] function:
 Note the use of @racket[(lambda () e) ...] in the template. The pattern variable
 @racket[e] occurred in front of ellipses in the pattern, so it must be used in
 front of ellipses in the template. But the term before the ellipses in the
-template isn't just @racket[e], it is @racket[(lambda () e)]. This wrapper
-around @racket[e] gets copied for every instance of @racket[e]:
+template isn't just @racket[e], it is @racket[(lambda () e)]. This
+@racket[(lambda () HOLE)] wrapper gets copied for every instance of @racket[e]:
 @racketblock[
 (my-and 1 2 3)
 ==>

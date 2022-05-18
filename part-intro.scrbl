@@ -16,7 +16,8 @@
 @title[#:tag "intro" #:version ""]{Introduction}
 
 This section introduces the elements of macro design and illustrates these
-design elements with simple example macro.
+design elements with simple example macro. It uses the example to introduce some
+of Racket's facilities for specifying, implementing, and testing macros.
 
 This guide assumes that you have a basic working knowledge of Racket and
 functional programming. @other-doc['(lib "scribblings/guide/guide.scrbl")] is
@@ -50,17 +51,17 @@ framework.
 Along the way, @italic{HtDP} fills in the design recipe's skeleton with idioms,
 tricks, preferences, and limitations of Scheme-like (and ML-like)
 mostly-functional programming languages. For example, it demonstrates
-abstraction via parametric polymorphism and higher-order functions. To name some
-of the limitations: it uses lexical scoping; it avoids reflection (eg, no
-accessing structure fields by strings); it avoids @racket[eval]; it treats
-closures as opaque; it (usually) avoids mutation; and so on. These parts of the
-programming mental model tend to become invisible, until you compare with a
-language that makes different choices.
+abstraction via parametric polymorphism and higher-order functions rather than
+OO patterns. To name some of the limitations: it uses lexical scoping; it avoids
+reflection (eg, no accessing structure fields by strings); it avoids
+@racket[eval]; it treats closures as opaque; it (usually) avoids mutation; and
+so on. Once you absorb them, these parts of the programming mental model tend to
+be invisible, until you compare with a language that makes different choices.
 
 This guide instantiates the design recipe kernel as follows: It introduces a
 specification language called @emph{shapes}, combining features of grammars,
 patterns, and types. The implementation strategies are more specialized, but
-they are still informed by the shape of the macro inputs. The implementation
+they are still organized around the shapes of macro inputs. The implementation
 language is Racket with @racketmodname[syntax/parse] and some other standard
 syntax libraries.
 
@@ -500,9 +501,16 @@ Here is a variant of the previous definition that uses @racket[quasisyntax]
         (error 'assert "assertion failed: ~s" (quote #,condition-stx)))))
 ]
 
-In general, this guide will stick to the @racketmodname[syntax/parse] system for
-macro definitions, and it uses the @litchar{#'} abbreviation for @racket[syntax]
-expressions. It will sometimes be necessary to use the lower-level APIs to
-perform some auxiliary computations.
+It is not a goal of this guide to introduce you to every bit of machinery that
+can be used to implement macros. In general, this guide will stick to the
+@racketmodname[syntax/parse] system for macro definitions, and it uses the
+@litchar{#'} abbreviation for @racket[syntax] expressions. It will sometimes be
+necessary to use the lower-level APIs (such as @racket[syntax->list],
+@litchar{#`} and @litchar{#,}) to perform auxiliary computations.
+
+On the other hand, it is a goal of this guide to discuss and compare different
+implementation strategies. So the following sections do often present multiple
+implementations of the same macro according to different strategies.
+
 
 @(close-eval the-eval)

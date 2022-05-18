@@ -17,7 +17,9 @@
 @title[#:tag "shapes" #:version ""]{Terms and Shapes}
 
 This section introduces terminology for talking about the pieces of Racket
-programs and their interpretation.
+programs and their interpretation. In particular, it introduces the idea of
+@emph{shapes}, which we will use as the specification language that drives macro
+design and organizes implementation strategies.
 
 
 @; ------------------------------------------------------------
@@ -196,3 +198,6 @@ the interpretation of the shape. But a syntax class cannot always check every
 aspect of a shape's interpretation; for example, a syntax class cannot verify
 that we use a term in an expression position in the code that we generate. That
 obligation stays with the macro writer.
+
+The following sections introduce different shapes and show how they affect the
+design and implementation of macros that use them.

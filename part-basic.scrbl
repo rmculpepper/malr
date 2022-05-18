@@ -133,8 +133,8 @@ implementation:
 (assert (equal? (my-when #f (begin (define x 1) (/ 0))) (void)))
 ]
 
-That is, use @racket[(block _)] to wrap a @shape{Body} so it can be used in a
-strict @shape{Expr} position. It is also common to use a @racket[(let () _)]
+That is, use @racket[(block HOLE)] to wrap a @shape{Body} so it can be used in a
+strict @shape{Expr} position. It is also common to use a @racket[(let () HOLE)]
 wrapper, but that does not work for all @shape{Body} terms; it requires that the
 @shape{Body} term ends with an expression. The @racket[block] form is more
 flexible.
@@ -144,7 +144,7 @@ the following shape:
 @codeblock{
 ;; (#%expression Expr) : Body
 }
-That is, use @racket[(#%expression _)] to turn a @shape{Body} position into a
+That is, use @racket[(#%expression HOLE)] to turn a @shape{Body} position into a
 strict @shape{Expr} position.
 
 @exercise[#:tag "basic:catch-output-expr"]{Check your solution to

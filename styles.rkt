@@ -3,6 +3,8 @@
 
 #lang at-exp racket/base
 (require racket/runtime-path
+         racket/date
+         racket/format
          (for-syntax racket/base)
          (for-syntax syntax/parse))
 (require scribble/basic
@@ -27,6 +29,7 @@
          ALT
          !
          STAR
+         HOLE
          expr_
          fail_
          datum_
@@ -45,7 +48,11 @@
          make-malr-eval
          cc-footer)
 
-(define malr-version "v2-draft-01")
+(define malr-version
+  (let ([now (current-date)])
+    (define (~02r n) (~r n #:min-width 2 #:pad-string "0"))
+    (apply format "2-~a~a.~a" ;; (~02r (modulo (date-year now) 100))
+           (map ~02r (list (date-month now) (date-day now) (date-hour now))))))
 
 (define draft-mode? #t)
 
@@ -75,6 +82,12 @@
 
 (define-syntax Syntax
   (make-element-id-transformer (lambda _ #'(racket syntax))))
+
+(define-syntax HOLE
+  (make-element-id-transformer (lambda _ #'(lightgrey "␣")))) ;; or □ ?
+
+(define (lightgrey . content)
+  (apply elem #:style (style #f (list (color-property "lightgray"))) content))
 
 (define-syntax ALT
   (make-element-id-transformer (lambda _ #'(elem "|"))))
