@@ -216,7 +216,9 @@ as a macro that always raises a syntax error:
 ]
 The error only occurs if the macro is expanded by the Racket macro expander; our
 macros and syntax classes can still recognize references to it without
-triggering the error.
+triggering the error. Note that the module that provides @racket[my-quasiquote]
+must also provide @racket[escape] so that users of @racket[my-quasiquote] can
+refer to this @racket[escape] binding.
 
 Now we can implement the @racket[quasi-datum] syntax class. We declare
 @racket[escape] as a (reference) literal using @racket[#:literals]; then
@@ -268,6 +270,15 @@ Here are some examples:
 (my-quasiquote (1 2 (escape (+ 1 2))))
 (my-quasiquote ((expression (+ 1 2)) (value (escape (+ 1 2)))))
 (my-quasiquote (a (b (c (d (e (f (escape (string->symbol "g")))))))))
+]
+
+Because @racket[escape] is recognized by reference, it can be made unavailable
+by shadowing, or it can be aliased to another name:
+@examples[#:eval the-eval #:label #f
+(let ([escape 'piňa-colada])
+  (my-quasiquote (1 2 (escape (+ 1 2)))))
+(let-syntax ([houdini (make-rename-transformer #'escape)])
+  (my-quasiquote ((houdini 'jacket) (houdini 'water-tank))))
 ]
 
 The behavior of this example is questionable, though:

@@ -42,17 +42,16 @@ Wait! Why make this a macro? I can define an ordinary run-time AST datatype
 (call it @type{RE}) for representing regular expressions, and I can write a
 function that translates an @type{RE} to a @racket[pregexp] string.
 
-Here is the @type{RE} type. For simplicity, it only handles a subset of the
-features of @secref["regexp-syntax" #:doc '(lib
-"scribblings/reference/reference.scrbl")].
+Here is the @type{RE} type. For simplicity, it only represents handles a subset
+of @secref["regexp-syntax" #:doc '(lib "scribblings/reference/reference.scrbl")].
 
 @codeblock{
 ;; An RE is one of
-;; - (re:or (Listof RE))
+;; - (re:or (NonemptyListof RE))
 ;; - (re:cat (Listof RE))
 ;; - (re:repeat Boolean RE)
 ;; - (re:report RE)
-;; - (re:chars (Listof Range))
+;; - (re:chars (NonemptyListof Range))
 ;; A Range is (rng Char Char)
 }
 @examples[#:eval the-eval #:no-result
@@ -108,7 +107,6 @@ precedence of regular expression syntax. For example, producing an
 
 Here is an example:
 @examples[#:eval the-eval #:label #f
-
 (emit-regexp
  (re:repeat #f
   (re:cat (list (re:report (re:repeat #t (re:chars (list (rng #\a #\z)))))
@@ -124,6 +122,7 @@ itself.
 
 In any case, this code represents a complete, self-contained unit of
 functionality. Let's wrap up the code above as module:
+
 @racketblock[
 (module re-ast racket/base
   (require racket/match racket/string)
@@ -133,6 +132,7 @@ functionality. Let's wrap up the code above as module:
            emit-regexp)
   ___)
 ]
+
 We can leave a friendlier front end as a task for a separate module.
 
 @; FIXME! Avoid copying!
@@ -184,14 +184,103 @@ function. Specifically, the macro should support a friendlier notation that it
 parses into a compile-time @type{RE} value, translates to a string, and converts
 to a @racket[pregexp] literal, all at compile time.
 
+Here is a shape for representing (a subset of) regular expressions:
+
+@codeblock{
+;; RE ::= (or RE ...+)
+;;      | (cat RE ...)
+;;      | (* RE)
+;;      | (+ RE)
+;;      | (report RE)
+;;      | (chars CharRange ...+)
+;; CharRange ::= Char | [Char Char]
+}
+
+I have called the shape @shape{RE}, the same as the @type{RE} type. In fact, the
+interpretation of the @shape{RE} term is a compile-time @type{RE} value.
+
 We can simply import the @type{RE} type and @racket[emit-regexp] function into
 the @emph{compile-time environment} as follows:
 @examples[#:eval the-eval #:no-result
 (require (for-syntax 're-ast))
 ]
+The @racket[re] syntax class, then, should have a single attribute whose value
+is an @type{RE} value.
+
+Before we define the syntax class, we should decide how to recognize the
+literals in the shape definition (aka @emph{grammar}) above. In
+@secref["quasiquote"], I said there are two options: symbolic literals and
+reference literals. In this case, I want to use names that are already defined
+by Racket, but their interpretations here have nothing to do with their Racket
+meanings. More importantly, I don't plan to support macro-like extensions to
+this syntax, which is one major reason to recognize literals by reference
+instead of symbolically. So let's recognize the @shape{RE} literals
+symbolically. We can do that by declaring them with @racket[#:datum-literals]
+instead of @racket[#:literals]. Here are the syntax class definitions:
+
+@examples[#:eval the-eval #:no-result
+(begin-for-syntax
+  (define-syntax-class char-range
+    #:attributes (ast) (code:comment "Range")
+    (pattern c:char
+             #:attr ast (let ([c (syntax->datum #'c)]) (rng c c)))
+    (pattern [lo:char hi:char]
+             #:attr ast (rng (syntax->datum #'lo) (syntax->datum #'hi))))
+  (define-syntax-class re
+    #:attributes (ast) (code:comment "RE")
+    #:datum-literals (or cat * + report chars)
+    (pattern (or e:re ...+)
+             #:attr ast (re:or (datum (e.ast ...))))
+    (pattern (cat e:re ...)
+             #:attr ast (re:cat (datum (e.ast ...))))
+    (pattern (* e:re)
+             #:attr ast (re:repeat #f (datum e.ast)))
+    (pattern (+ e:re)
+             #:attr ast (re:repeat #t (datum e.ast)))
+    (pattern (report e:re)
+             #:attr ast (re:report (datum e.ast)))
+    (pattern (chars r:char-range ...+)
+             #:attr ast (re:chars (datum (r.ast ...))))))
+]
+
+The @racket[my-px] macro simply calls @racket[emit-regexp] on the parsed
+@type{RE} value, then calls @racket[pregexp] to convert that to a (compile-time)
+regular expression value.
+
+@examples[#:eval the-eval #:no-result #:escape UNQUOTE
+(code:comment "(my-px RE) : Expr")
+(define-syntax my-px
+  (syntax-parser
+    [(_ e:re)
+     #`(Quote #,(pregexp (emit-regexp (datum e.ast))))]))
+]
+
+Note that we use @racket[quote] to wrap the value returned by @racket[pregexp].
+
+Here is the example from the previous section translated to use the macro's
+notation:
+
+@examples[#:eval the-eval #:label #f
+(my-px (* (cat (report (+ (chars [#\a #\z])))
+               (+ (chars #\space)))))
+]
 
 
 
+@exercise[#:tag "static:re-string"]{Update the @shape{RE} shape with the
+following case:
+@codeblock{
+;; RE ::= ... | String
+}
+You can use @racket[string] as a syntax class annotation to recognizes string
+terms.
+
+A string is interpreted as the concatenation of the singleton character sets of
+each character in the string. For example:
+@racketblock[
+(my-px (* "ab"))
+(code:comment "expect #px\"(?:ab)*\"")
+]}
 
 
 @; ------------------------------------------------------------
