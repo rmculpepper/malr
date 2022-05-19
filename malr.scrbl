@@ -21,8 +21,6 @@
 @;{
 
 Add to existing sections:
-- keep macros simple: use run-time helpers
-- SimpleExpr shape ?
 - Exercises
   - generalize cond to take "body list" (intro terminology,
     "body term" vs "body list" ??)
@@ -32,11 +30,12 @@ Add to existing sections:
     - If you didn't follow the design recipe, you missed the point! Fail!
 
 Next sections:
-- Datum shape, quasiquote (continue with my-evcase => my-case)
-  - quote / quote-syntax on prefab structs!
-  - quasiquote example?
-- Static shape (use simple version of regexp example?)
+- compile-time computation (simple regexp example?)
+  - then static id?
+  - then multiple interfaces
+  - little languages, taxonomy
 
+- Static shape (use simple version of regexp example?)
 - breaking hygiene (hash-view)
 - compile-time API
   - write transformers, not macro-generating-macros
