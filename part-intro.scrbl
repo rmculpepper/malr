@@ -33,7 +33,7 @@ recipe''; the kernel of the design recipe consists of the following four steps:
 
 @itemlist[#:style 'numbered
 
-@item{Write a specification.}
+@item{Specify the inputs.}
 @item{Write examples that can be turned into tests.}
 @item{Choose an implementation strategy.}
 @item{Finish the implementation and check it.}
