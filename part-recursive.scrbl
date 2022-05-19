@@ -232,9 +232,9 @@ instead of as pattern variables. Here is the definition, without attributes:
 ]
 
 What interface should we give to the @racket[quasi-datum] syntax class? Recall
-the interface design options from @secref["enum-shapes-def"]. Most of them are
-applicable here; with the possible exception of the ``common meaning''
-approach. Let's use the ``macro behavior'' approach. The @racket[my-quasiquote]
+the @tech{interface strategies} from @secref["enum-shapes-def"]. Most of them are
+applicable here; with the possible exception of the @tech{common meaning}
+approach. Let's use the @tech{macro behavior} strategy. The @racket[my-quasiquote]
 interprets @shape{QuasiDatum} as instructions to construct a value from a
 mixture of constants and values computed by escaped Racket expressions. We can
 represent that with a syntax attribute, @racket[code], containing an expression
@@ -331,8 +331,8 @@ syntax class:
 @examples[#:eval the-eval #:no-result
 (begin-for-syntax
   (define-syntax-class quasi-datum
-    #:attributes (const?    (code:comment "Boolean")
-                  code)     (code:comment "Expr")
+    #:attributes (const? (code:comment "Boolean")
+                  code)  (code:comment "Expr")
     #:literals (escape)
     (pattern (escape code:expr)
              #:attr const? #f)
@@ -357,27 +357,32 @@ syntax class:
 
 @; FIXME: How can we test for optimization?
 
+@exercise[#:tag "rec:qq-rec"]{Implement @racket[quasi-datum] and
+@racket[my-quasiquote] (the unoptimized version) according to the @tech{empty
+interface} strategy and a recursive @racket[my-quasiquote] macro. Is it possible
+to implement the @racket[quote] optimization using this approach?}
 
 @exercise[#:tag "rec:qq-ignore"]{Extend the definition of @shape{QuasiDatum} as
 follows:
 @codeblock{
-;; QuasiDatum ::= ... | (ignore-me QuasiDatum)
+;; QuasiDatum ::= ... | (cellophane QuasiDatum)
 }
-An @racket[ignore-me] wrapper is simply omitted from the constructed value; that
-is, the @shape{QuasiDatum} @racket[(ignore-me _qd)] is equivalent to
+A @racket[cellophane] wrapper is simply discarded from the constructed value;
+that is, the @shape{QuasiDatum} @racket[(cellophane _qd)] is equivalent to
 @racket[_qd]. For example:
 @racketblock[
-(my-quasiquote (1 2 (ignore-me 3) (escape (* 2 2))))
+(my-quasiquote (1 2 (cellophane 3) (escape (* 2 2))))
 (code:comment "expect '(1 2 3 4)")
-(my-quasiquote (1 (ignore-me 2) (ignore-me (ignore-me 3))))
+(my-quasiquote (1 (cellophane 2) (cellophane (cellophane 3))))
 (code:comment "expect '(1 2 3)")
 ]
 
-Start with the unoptimized version of the @racket[quasi-datum] syntax
-class. After you have updated (and tested) that version, implement a similar
-optimization for the updated @shape{QuasiDatum} shape. For example, the second
-example above should expand directly to @racket[(Quote (1 2 3))]. (Hint: What
-assumption made by the original optimization does the updated shape violate?)}
+Start with the unoptimized version of the @racket[quasi-datum] syntax class
+using the @tech{macro behavior} strategy. After you have updated (and tested)
+that version, implement a similar optimization for the updated
+@shape{QuasiDatum} shape. For example, the second example above should expand
+directly to @racket[(Quote (1 2 3))]. (Hint: What assumption made by the
+original optimization does the updated shape violate?)}
 
 
 @(close-eval the-eval)

@@ -83,27 +83,30 @@ differently. The syntax class, though, needs a single interface that determines
 what nested attributes are bound when the syntax class is used in a macro and
 how the nested attributes are interpreted.
 
-This mismatch is a fundamentally difficult issue to deal with, and in general
-there is no single right answer. Here are some of the approaches:
+The interface between syntax class and macro is determined by how we allocate
+reponsibility between the two for the interpretation of the syntax class's
+terms. This problem is a fundamentally difficult one, and in general there is no
+single right answer, but there are some standard @deftech{interface strategies}:
 @itemlist[
 
-@item{Empty Interface (Redo Case Analysis)}
-@item{Common Meaning Interface}
-@item{Macro Behavior Interface}
-@item{Code Generation Interface}
-@item{AST Interface}
+@item{empty interface (redo case analysis)}
+@item{common meaning}
+@item{macro behavior}
+@item{code generation}
+@item{AST}
 
 ]
 Each has different tradeoffs, and some don't work in all situations. The
 following sections discuss each approach in greater detail.
 
 @; ----------------------------------------
-@subsection[#:tag "enum-empty"]{Empty Interface (Redo Case Analysis)}
+@subsection[#:tag "enum-empty"]{Empty Interface Strategy (Redo Case Analysis)}
 
 One option is to give the syntax class no responsibility for interpreting its
-terms, and simply redo the case analysis in the macro. The syntax class is still
-useful for input validation and as internal documentation, but since it performs
-no interpretation, we should declare that it exports no attributes.
+terms, and simply redo the case analysis in the macro. This is the
+@deftech{empty interface} strategy. The syntax class is still useful for input
+validation and as internal documentation, but since it performs no
+interpretation, we should declare that it exports no attributes.
 
 @examples[#:eval the-eval #:no-result #:escape UNQUOTE
 (begin-for-syntax
@@ -159,13 +162,14 @@ Update the design of @racket[cond-clause] and @racket[my-cond] for the new
 @shape{CondClause} variant using the strategy described in this section.}
 
 @; ----------------------------------------
-@subsection[#:tag "enum-meaning"]{Common Meaning Interface}
+@subsection[#:tag "enum-meaning"]{Common Meaning Interface Strategy}
 
-In some cases, it is possible to find a common meaning shared by all of the
-variants that is also sufficient for the macro to work with. In the case of
-@shape{CondClause}, this is relatively straightforward: We can convert any
-``normal'' clause into an ``apply'' clause by wrapping it in a function that
-ignores its argument. For example, instead of writing
+In some cases, it is possible to find a @deftech[#:key "common meaning"]{common
+meaning} shared by all of the variants that is also sufficient for the macro to
+work with. In the case of @shape{CondClause}, this is relatively
+straightforward: We can convert any ``normal'' clause into an ``apply'' clause
+by wrapping it in a function that ignores its argument. For example, instead of
+writing
 @racketblock[
 (cond [(even? 2) 'e]
       [(odd? 2) 'o])
@@ -229,17 +233,17 @@ using the strategy described in this section.}
 
 
 @; ----------------------------------------
-@subsection[#:tag "enum-behavior"]{Macro Behavior Interface}
+@subsection[#:tag "enum-behavior"]{Macro Behavior Interface Strategy}
 
 @; @bold{Option 2: Shift more of the macro's behavior into the syntax class.}
 
 If it is difficult to find a common interface for all of a syntax class's
-variants, one thing that can help is to move behavior from the macro to the
-syntax class. This is similar to shifting from ``functional'' style operations
-defined separately from a data type to ``object-oriented'' style methods where
-behavior is defined together with the type and its variants. The potential
-downside, of course, is that it couples the syntax class more tightly with the
-macro.
+variants based solely on their contents, an alternative is to design the
+interface based on the @deftech{macro behavior}. This is similar to shifting
+from ``functional'' style operations defined separately from a data type to
+``object-oriented'' style methods where behavior is defined together with the
+type and its variants. The potential downside, of course, is that it couples the
+syntax class more tightly with the macro.
 
 In this example, we can move the responsibility for testing the condition and
 producing the result if the clause is selected from the macro to the syntax
@@ -292,14 +296,15 @@ using the strategy described in this section.}
 
 
 @; ------------------------------------------------------------
-@subsection[#:tag "enum-codegen"]{Code Generator Interface}
+@subsection[#:tag "enum-codegen"]{Code Generator Interface Strategy}
 
 Suppose, though, that we really wanted to produce more natural looking code,
 perhaps for readability. Here's a variation on the previous solution: Instead of
 exporting a syntax-valued attribute that takes a run-time failure continuation,
 export a @emph{function-valued} attribute that takes a compile-time failure
 @emph{expression} and produces an expression implementing @racket[my-cond]'s
-behavior for that clause. That is:
+behavior for that clause. That is, the attribute represents a @deftech{code
+generator} for the clause. For example:
 @examples[#:eval the-eval #:no-result #:escape UNQUOTE
 (begin-for-syntax
   (define-syntax-class cond-clause
@@ -315,8 +320,7 @@ behavior for that clause. That is:
                                         #,fail-expr))))))
 ]
 Note that the @racket[make-code] attribute is declared with a type, not a shape,
-and it is defined using @racket[#:attr] instead of @racket[#:with]. It
-represents a ``code generator'' for the clause.
+and it is defined using @racket[#:attr] instead of @racket[#:with].
 
 Here is the corresponding definition of @racket[my-cond]:
 @examples[#:eval the-eval #:no-result
@@ -355,13 +359,13 @@ revised definition of @shape{CondClause}. Update the design of
 using the strategy described in this section.}
 
 @; ----------------------------------------
-@subsection[#:tag "enum-ast"]{AST Interface}
+@subsection[#:tag "enum-ast"]{AST Interface Strategy}
 
-The AST approach is a variation on the @secref["enum-empty"] approach, which has
-the macro redo the syntax class's case analysis. But in this variation, instead
-of the macro doing case analysis on the syntax, the syntax class parses its
-terms into values in some AST datatype, and then the macro does case analysis on
-the AST values.
+The @deftech{AST strategy} is a variation on the @secref["enum-empty"] approach,
+which has the macro redo the syntax class's case analysis. But in this
+variation, instead of the macro doing case analysis on the syntax, the syntax
+class parses its terms into values in some AST datatype, and then the macro does
+case analysis on the AST values.
 
 This results in a larger interface between the syntax class and the macro or
 macros that use it, because the interface includes the AST datatype

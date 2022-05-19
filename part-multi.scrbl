@@ -108,7 +108,7 @@ the shape.
 @; ----------------------------------------
 @subsection[#:tag "multi-redo-case"]{Redo Case Analysis}
 
-For the ``redo case analysis'' approach, we simply add a case to the private,
+For the @tech{empty interface}, we simply add a case to the private,
 recursive macro:
 
 @examples[#:eval the-eval #:no-result
@@ -145,12 +145,13 @@ recursive macro:
 
 
 @; ----------------------------------------
-@subsection[#:tag "multi-codegen"]{Code Generator Interface}
+@subsection[#:tag "multi-codegen"]{Code Generator}
 
-With the code generator interface, the new implementation simply involves two
-changes to the old implementation. We must change @racket[define-syntax-class]
-to @racket[define-splicing-syntax-class], and we must add the third variant as
-below. The definition of @racket[my-clause] itself does not change.
+With the @tech{code generator} strategy, the new implementation simply involves
+two changes to the old implementation. We must change
+@racket[define-syntax-class] to @racket[define-splicing-syntax-class], and we
+must add the third variant as below. The definition of @racket[my-clause] itself
+does not change.
 
 @examples[#:eval the-eval #:no-result #:escape UNQUOTE
 (begin-for-syntax
@@ -181,7 +182,7 @@ below. The definition of @racket[my-clause] itself does not change.
 ]
 
 @; ----------------------------------------
-@subsection[#:tag "multi-ast"]{AST Interface}
+@subsection[#:tag "multi-ast"]{AST}
 
 @exercise[#:tag "multi-cond/ast"]{Adapt the solution from @secref["enum-ast"] to
 support @racket[#:do]-clauses.}
