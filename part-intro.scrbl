@@ -65,7 +65,7 @@ they are still organized around the shapes of macro inputs. The implementation
 language is Racket with @racketmodname[syntax/parse] and some other standard
 syntax libraries.
 
-Along the way, I cover some of the idioms and limitations of the programming
+Along the way, it covers some of the idioms and limitations of the programming
 model for macros: macros (usually) respect lexical scoping; they must respect
 the ``phase'' separation between compile time and run time; they avoid
 @racket[eval]; they (usually) treat expressions as opaque; and so on.
