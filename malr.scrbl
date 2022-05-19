@@ -17,6 +17,7 @@
 @include-section["part-enum.scrbl"]
 @include-section["part-multi.scrbl"]
 @include-section["part-recursive.scrbl"]
+@include-section["part-static.scrbl"]
 
 @;{
 
