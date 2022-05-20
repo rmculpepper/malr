@@ -30,6 +30,7 @@
          !
          STAR
          HOLE
+         ELIDED
          expr_
          fail_
          datum_
@@ -102,6 +103,11 @@
 (define-syntax HOLE
   (make-element-id-transformer (lambda _ #'(lightgrey "␣")))) ;; or □ ?
 
+(define-syntax ELIDED
+  (make-element-id-transformer (lambda _ #'(grey "····")))) ;; or ⋯⋯
+
+(define (grey . content)
+  (apply elem #:style (style #f (list (color-property "gray"))) content))
 (define (lightgrey . content)
   (apply elem #:style (style #f (list (color-property "lightgray"))) content))
 

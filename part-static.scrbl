@@ -62,6 +62,7 @@ of @secref["regexp-syntax" #:doc '(lib "scribblings/reference/reference.scrbl")]
 (struct re:chars (ranges) #:prefab)
 (struct rng (lo hi) #:prefab)
 ]
+I'll explain why I use @racket[#:prefab] structs in a later section.
 
 Here is the code to translate an @type{RE} value into a
 @racket[pregexp]-compatible string. The functions are organized according to
@@ -177,7 +178,7 @@ We can leave a friendlier front end as a task for a separate module.
 ]
 
 @; ------------------------------------------------------------
-@section[#:tag "macro-front-end"]{A Macro Front-End}
+@subsection[#:tag "macro-front-end"]{A Macro Front-End}
 
 Let's add a macro ``front end'' to the @type{RE} type and @racket[emit-regexp]
 function. Specifically, the macro should support a friendlier notation that it
@@ -197,13 +198,14 @@ Here is a shape for representing (a subset of) regular expressions:
 }
 
 I have called the shape @shape{RE}, the same as the @type{RE} type. In fact, the
-interpretation of the @shape{RE} term is a compile-time @type{RE} value.
+interpretation of the @shape{RE} term is a compile-time @type{RE} value.  
+We can import the @type{RE} type and @racket[emit-regexp] function into the
+@emph{compile-time environment} as follows:
 
-We can simply import the @type{RE} type and @racket[emit-regexp] function into
-the @emph{compile-time environment} as follows:
 @examples[#:eval the-eval #:no-result
 (require (for-syntax 're-ast))
 ]
+
 The @racket[re] syntax class, then, should have a single attribute whose value
 is an @type{RE} value.
 
@@ -266,7 +268,6 @@ notation:
 ]
 
 
-
 @exercise[#:tag "static:re-string"]{Update the @shape{RE} shape with the
 following case:
 @codeblock{
@@ -290,15 +291,301 @@ The @shape{Static[T]} shape is a parameterized shape that recognizes identifiers
 that refer to compile-time information of type @type{T}. The interpretation of a
 @shape{Static[T]} reference is the compile-time @type{T} value.
 
-The corresponding @racket[static] syntax class .. FIXME
+The corresponding @racket[static] syntax class is parameterized by a predicate
+and a description. The syntax class matches an identifier if the identifier is
+bound in the @emph{normal environment} to a @emph{compile-time} value accepted
+by the predicate; the @racket[value] attribute contains the compile-time value.
 
-FIXME
+That is, the @shape{Static} shape contains identifiers bound with
+@racket[define-syntax], @racket[let-syntax], and so on. I'll call this a
+@emph{static binding}, as opposed to a @emph{variable bindings} created by
+@racket[define], @racket[let], and so on. Static bindings are also created by
+macros such as @racket[struct]: the name of a struct type carries compile-time
+information about the struct type, including references to its predicate and
+accessor functions. This information is used by macros like @racket[match] to
+implement pattern matching; it is also used by @racket[struct-out] to get the
+names to export. (And remember, a @emph{static} binding in the @emph{normal
+environment} is different from a @emph{variable} binding in the
+@emph{compile-time environment}, even though both refer to compile-time values.)
 
-Generally, rather than using instances of @shape{Static} all over your
-specifications, you should give a name to the instance of @shape{Static} that
-your code uses.
+@;{
+That means, by the way, that a Racket macro name is ``simply'' an identifier
+that belongs to @shape{Static[Syntax -> Syntax]}. Well, almost.
+}
 
-....
+@margin-note{Terminology: I don't like ``bound as syntax''. I'm not totally
+happy with ``bound statically'' either, though. ``bound to compile-time
+information'' is too verbose. ``bound at compile time'' is wrong. Alternatives?}
+
+Let's extend our little regular expression language with the ability to define
+and use @shape{RE} names.
+
+Here is the shape of the definition form:
+@margin-note{Notation: @shape{~} or @shape{::} or ??}
+@codeblock{
+;; (define-re x:Id RE) : Body[{x ~ RE}]
+}
+
+I'm using the notation from @secref["shapes-types-scopes"] to indicate the
+bindings introduced by a @shape{Body} term, but I have extended it with the
+notation @shape{x ~ RE} to mean that @shape{x} is bound @emph{statically} to a
+compile-time value of type @type{RE} --- as opposed to @shape{x : T}, which
+means that @shape{x} is bound as a variable to a run-time value of type
+@type{T}.
+
+The variants of the @type{RE} type are represented by prefab structs, which are
+@racket[read]able and --- more importantly --- @racket[quote]able. So we can
+implement the definition macro as follows:
+
+@examples[#:eval the-eval #:no-result #:escape UNQUOTE
+(define-syntax define-re
+  (syntax-parser
+    [(_ name:id e:re)
+     #`(define-syntax name (quote #,(datum e.ast)))]))
+]
+
+That is, @racket[define-re] parses the @shape{RE} term to get a compile-time
+@type{RE} value. But it cannot directly create a static binding for
+@racket[name]; it must do so by expanding to a @racket[define-syntax] term. So
+the macro must convert the compile-time @type{RE} value that it has now into an
+expression that will produce an equivalent value later, when the macro expander
+processes the @racket[define-syntax] form. Since the value is @racket[read]able,
+we can do that with @racket[quote]. (If the value were not readable, then this
+would create ``3D syntax'', and modules using the macro would fail to
+compile. Or more precisely, compilation would succeed but the compiler would be
+unable to serialize the compiled code to a @tt{.zo} file.)
+
+To allow references to static @type{RE} bindings, we extend the @shape{RE} shape
+as follows:
+
+@codeblock{
+;; RE ::= ... | Static[RE]
+}
+
+The @racket[re] syntax class needs a new pattern for references to @shape{RE}
+names, and that pattern needs a helper predicate to recognize @type{RE}
+values. The existing patterns are unchanged.
+
+@racketblock[
+(begin-for-syntax
+  (code:comment "re-ast? : Any -> Boolean")
+  (code:comment "Shallow check for RE AST constructor. Sufficient?")
+  (define (re-ast? v)
+    (or (re:or? v) (re:cat? v) (re:repeat? v) (re:report? v) (re:chars? v)))
+
+  (define-syntax-class re
+    #:attributes (ast) (code:comment "RE")
+    #:datum-literals (or cat * + report chars)
+    ELIDED
+    (pattern (~var name (static re-ast? "name bound to RE"))
+             #:attr ast (datum name.value))))
+]
+
+@examples[#:eval the-eval #:hidden #:escape UNQUOTE
+;; --- Real definitions ---
+(begin-for-syntax
+  (code:comment "re-ast? : Any -> Boolean")
+  (code:comment "Shallow check for RE AST constructor. Sufficient?")
+  (define (re-ast? v)
+    (or (re:or? v) (re:cat? v) (re:repeat? v) (re:report? v) (re:chars? v)))
+  (define-syntax-class re
+    #:attributes (ast) (code:comment "RE")
+    #:datum-literals (or cat * + report chars)
+    (pattern (or e:re ...+)
+             #:attr ast (re:or (datum (e.ast ...))))
+    (pattern (cat e:re ...)
+             #:attr ast (re:cat (datum (e.ast ...))))
+    (pattern (* e:re)
+             #:attr ast (re:repeat #f (datum e.ast)))
+    (pattern (+ e:re)
+             #:attr ast (re:repeat #t (datum e.ast)))
+    (pattern (report e:re)
+             #:attr ast (re:report (datum e.ast)))
+    (pattern (chars r:char-range ...+)
+             #:attr ast (re:chars (datum (r.ast ...))))
+    (pattern (~var name (static re-ast? "name bound to RE"))
+             #:attr ast (datum name.value))))
+;; --- Redefine to get new syntax class defn ---
+(define-syntax my-px
+  (syntax-parser
+    [(_ e:re)
+     #`(Quote #,(pregexp (emit-regexp (datum e.ast))))]))
+]
+
+Now we can define intermediate @shape{RE} names and compose them into more
+complicated regular expressions:
+
+@examples[#:eval the-eval #:label #f
+(define-re word (+ (chars [#\a #\z])))
+(define-re spacing (+ (chars #\space)))
+(my-px (* (cat (report word) spacing)))
+]
+
+If we attempt to refer to a name that is not defined as a @shape{RE}, then we
+get an appropriate error:
+@examples[#:eval the-eval #:label #f
+(eval:error (my-px (cat word list)))
+]
+
+@; ------------------------------------------------------------
+@section[#:tag "multi-inferfaces"]{Static Information with Multiple Interfaces}
+
+There are still a few issues:
+@itemlist[#:style 'ordered
+
+@item{It would be nice if we could also use @shape{RE} names like
+@racket[spacing] as variables.}
+
+@item{The shallow @racket[re-ast?] test doesn't guarantee that the name was
+defined using @racket[define-re]. After all, anyone can create a prefab struct
+named @racket[re:repeat].}
+
+@item{This design does not allow forward references: an @shape{RE} name must be
+defined before it is used. But it is often preferable to define complex objects
+in a top-down order.}
+
+]
+We can fix the first two issues by adding a generative (that is, not prefab)
+struct wrapper around the @type{RE} value, and making it support the procedure
+interface so it acts as an identifier macro. The next section shows how to
+support forward references, at least in most contexts.
+
+
+
+@examples[#:eval the-eval #:no-result #:escape UNQUOTE
+(require (for-syntax syntax/transformer))
+
+(begin-for-syntax
+  ;; A RE-Binding is (re-binding RE (Syntax -> Syntax))
+  (struct re-binding (ast transformer)
+    #:property prop:procedure (struct-field-index transformer))
+
+  (define-syntax-class re
+    #:attributes (ast) (code:comment "RE")
+    #:datum-literals (or cat * + report chars)
+    (pattern (or e:re ...+)
+             #:attr ast (re:or (datum (e.ast ...))))
+    (pattern (cat e:re ...)
+             #:attr ast (re:cat (datum (e.ast ...))))
+    (pattern (* e:re)
+             #:attr ast (re:repeat #f (datum e.ast)))
+    (pattern (+ e:re)
+             #:attr ast (re:repeat #t (datum e.ast)))
+    (pattern (report e:re)
+             #:attr ast (re:report (datum e.ast)))
+    (pattern (chars r:char-range ...+)
+             #:attr ast (re:chars (datum (r.ast ...))))
+    (pattern (~var name (static re-binding? "name bound to RE"))
+             #:attr ast (re-binding-ast (datum name.value)))))
+
+(define-syntax define-re
+  (syntax-parser
+    [(_ name:id e:re)
+     #`(define-syntax name
+         (re-binding (Quote #,(datum e.ast))
+                     (make-variable-like-transformer
+                      (quote-syntax (my-px name)))))]))
+
+(define-syntax my-px
+  (syntax-parser
+    [(_ e:re)
+     #`(Quote #,(pregexp (emit-regexp (datum e.ast))))]))
+]
+
+@racketblock[
+(begin-for-syntax
+  (define-syntax-class re
+    #:attributes (ast) (code:comment "RE")
+    #:datum-literals (or cat * + report chars)
+    ELIDED
+    (pattern (~var name (static re-binding? "name bound to RE"))
+             #:attr ast (re-binding-ast (datum name.value)))))
+]
+
+
+@examples[#:eval the-eval #:label #f
+(let ()
+  (define-re word (+ (chars [#\a #\z])))
+  (define-re spacing (+ (chars #\space)))
+  (define-re para (* (cat word spacing)))
+  (list word spacing para))
+]
+
+
+
+
+
+
+
+
+@; ------------------------------------------------------------
+@section[#:tag "two-pass"]{Two-Pass Expansion}
+
+
+
+@examples[#:eval the-eval #:no-result #:escape UNQUOTE
+(require (for-syntax racket/promise syntax/transformer))
+
+(begin-for-syntax
+  ;; A RE-Binding is (re-binding (Promise RE) (Syntax -> Syntax))
+  (struct re-binding (ast transformer)
+    #:property prop:procedure (struct-field-index transformer))
+
+  (define-syntax-class re
+    #:attributes (ast) (code:comment "RE")
+    #:datum-literals (or cat * + report chars)
+    (pattern (or e:re ...+)
+             #:attr ast (re:or (datum (e.ast ...))))
+    (pattern (cat e:re ...)
+             #:attr ast (re:cat (datum (e.ast ...))))
+    (pattern (* e:re)
+             #:attr ast (re:repeat #f (datum e.ast)))
+    (pattern (+ e:re)
+             #:attr ast (re:repeat #t (datum e.ast)))
+    (pattern (report e:re)
+             #:attr ast (re:report (datum e.ast)))
+    (pattern (chars r:char-range ...+)
+             #:attr ast (re:chars (datum (r.ast ...))))
+    (pattern (~var name (static re-binding? "name bound to RE"))
+             #:attr ast (force (re-binding-ast (datum name.value)))))
+
+  ;; parse-re : Syntax -> RE
+  ;; Gets entire `define-re` term.
+  (define (parse-re stx)
+    (syntax-parse stx
+      [(_ _ e:re) (datum e.ast)])))
+
+(define-syntax define-re
+  (syntax-parser
+    [(_ name:id _)
+     #`(begin
+         (define-syntax name
+           (re-binding (delay (parse-re (quote-syntax #,this-syntax)))
+                       (make-variable-like-transformer
+                        (quote-syntax (my-px name)))))
+         (void (my-px name)))]))
+
+(define-syntax my-px
+  (syntax-parser
+    [(_ e:re)
+     #`(Quote #,(pregexp (emit-regexp (datum e.ast))))]))
+]
+
+
+@examples[#:eval the-eval #:label #f
+(let ()
+  (define-re para (* (cat word spacing)))
+  (define-re word (+ (chars [#\a #\z])))
+  (printf "word = ~s\n" word)
+  (define-re spacing (+ (chars #\space)))
+  para)
+
+(eval:error
+(let ()
+  (define-re rec (cat (chars #\a) rec))
+  'whatever))
+]
+
 
 
 @(close-eval the-eval)
