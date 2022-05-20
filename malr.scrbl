@@ -31,12 +31,6 @@ Add to existing sections:
     - If you didn't follow the design recipe, you missed the point! Fail!
 
 Next sections:
-- compile-time computation (simple regexp example?)
-  - then static id?
-  - then multiple interfaces
-  - little languages, taxonomy
-
-- Static shape (use simple version of regexp example?)
 - breaking hygiene (hash-view)
 - compile-time API
   - write transformers, not macro-generating-macros
@@ -44,27 +38,17 @@ Next sections:
 - ids bound to static info (match-hash-view)
   - first with separate names
   - then combine names (one struct, two interfaces)
-- regexp DSL
-  - monolithic compiler-like macro: parse -> codegen
-  - multiple modules
-  - more complicated phases
-  - two-pass expansion (why can't we have forward references?)
-
 - local-expand
   - test for quoted value
   - assert macro that prints (selected) free variable values!
-
 - "polylithic" macros
   - Idea: syntax-parameter for error reporting?
 
 Racket changes:
 - `body`, etc syntax classes
-
+- #:check / ~check, more flexible error reporting
 
 }
-
-
-
 
 @; @include-section["old/old.scrbl"]
 
