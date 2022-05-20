@@ -732,10 +732,10 @@ error:
     ELIDED
     (pattern (~var name (static re-binding? "name bound to RE"))
              #:attr ast (let ([p (re-binding-ast (datum name.value))])
-                          (when (member p (running))
-                            (raise-syntax-error #f "recursive RE" #'name))
-                          (parameterize ((running (cons p (running))))
-                            (force p))))))
+                          (cond [(member p (running)) #f]
+                                [else (parameterize ((running (cons p (running))))
+                                        (force p))]))
+             #:fail-when (if (datum ast) #'name #f) "recursive RE")))
 ]
 
 
@@ -765,13 +765,13 @@ error:
              #:attr ast (re:report (datum e.ast)))
     (pattern (chars r:char-range ...+)
              #:attr ast (re:chars (datum (r.ast ...))))
+    #;
     (pattern (~var name (static re-binding? "name bound to RE"))
              #:attr ast (let ([p (re-binding-ast (datum name.value))])
                           (when (member p (running))
                             (raise-syntax-error #f "recursive RE" #'name))
                           (parameterize ((running (cons p (running))))
                             (force p))))
-    #;
     (pattern (~var name (static re-binding? "name bound to RE"))
              #:attr ast (let ([p (re-binding-ast (datum name.value))])
                           (cond [(member p (running)) #f]
@@ -833,9 +833,9 @@ names. For example, we could extend the AST type with a new variant for names,
 eagerly parse most of the AST and create promises only for instances of the name
 variant. One benefit of that approach is that most @shape{RE} syntax errors
 could be caught when the definition is processed instead of when the promise is
-forced. Some drawbacks are that it requires adding a new function to traverse
-the AST forcing the name nodes, and it involves either changing the @type{RE}
-type or creating a substantially similar @type{RE-With-Promises} type.
+forced. Some drawbacks are that it involves either changing the @type{RE} type
+or creating a substantially similar @type{RE-With-Promises} type, and it
+requires adding a new function to traverse the AST forcing the name nodes.
 
 
 @; ----------------------------------------
@@ -913,7 +913,5 @@ example is bindings exported with @racket[contract-out], to compute the negative
 blame party from the use site.
 
 @lesson{As much as possible, avoid shadowing entirely.}
-
-
 
 @(close-eval the-eval)
