@@ -50,6 +50,10 @@ Next sections:
   - more complicated phases
   - two-pass expansion (why can't we have forward references?)
 
+- local-expand
+  - test for quoted value
+  - assert macro that prints (selected) free variable values!
+
 - "polylithic" macros
   - Idea: syntax-parameter for error reporting?
 
