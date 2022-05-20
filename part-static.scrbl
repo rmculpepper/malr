@@ -7,7 +7,8 @@
           (only-in scribble/bnf nonterm)
           "styles.rkt"
           (for-label racket/base syntax/parse syntax/datum racket/match syntax/macro-testing
-                     racket/string rackunit))
+                     racket/string racket/struct-info syntax/transformer
+                     racket/contract rackunit))
 
 @(define the-eval (make-malr-eval))
 @(the-eval '(require (for-syntax racket/match)
@@ -427,14 +428,22 @@ get an appropriate error:
 (eval:error (my-px (cat word list)))
 ]
 
+We can inspect the compile-time value bound to an @shape{RE} name by using
+@racket[syntax-local-value], which is is the low-level mechanism underneath
+@racket[static]:
+
+@examples[#:eval the-eval #:label #f
+(phase1-eval (syntax-local-value (quote-syntax word)))
+]
+
 @; ------------------------------------------------------------
 @section[#:tag "multi-inferfaces"]{Static Information with Multiple Interfaces}
 
 There are still a few issues:
 @itemlist[#:style 'ordered
 
-@item{It would be nice if we could also use @shape{RE} names like
-@racket[spacing] as variables.}
+@item{It would be nice if we could also use @shape{RE} names like @racket[word]
+and @racket[spacing] as variables.}
 
 @item{The shallow @racket[re-ast?] test doesn't guarantee that the name was
 defined using @racket[define-re]. After all, anyone can create a prefab struct
@@ -450,16 +459,85 @@ struct wrapper around the @type{RE} value, and making it support the procedure
 interface so it acts as an identifier macro. The next section shows how to
 support forward references, at least in most contexts.
 
+The macro expander considers any name that is statically bound to a procedure to
+be a macro. It invokes the macro's transformer on uses of the macro both in
+operator position and as a solitary identifier. A macro that allows being used
+as a solitary identifier is called an @emph{identifier macro}. (If the macro's
+value is a @racket[set!-transformer], it is also invoked when the macro is used
+as the target of a @racket[set!] expression.)
 
+In Racket, any non-prefab struct can act as a procedure by implementing the
+@emph{procedure interface}, represented by the @racket[prop:procedure] struct
+type property. The macro system defines other interfaces, such as
+@racket[prop:rename-transformer] and @racket[prop:set!-transformer], and macros
+can also define their own interfaces. For example, the @racket[struct] form
+defines an interface, @racket[prop:struct-info], for representing compile-time
+information about struct types; the @racket[match] macro defines an interface,
+@racket[prop:match-expander], for implementing new @racket[match] pattern forms;
+and so on. Thus one name can carry multiple kinds of static information and
+behavior by being bound to a struct type that implements multiple interfaces.
+
+We could even define and export our own interface for values representing
+@shape{RE} names. But that would conflict with our goal of restricting @type{RE}
+names to those defined through our @racket[define-re] macro, which enforces
+invariants on the values carried by @shape{RE} names. Furthermore, it commits us
+to a representation; if we change how we represent information (as we will in
+the next section), it can break code that relies on the public interface. These
+problems can be mitigated with well-formedness checks and adapters, but that is
+additional effort and complexity, and it often doesn't completely fix the
+problem. In this example, the costs and risks don't seem worth the (absent)
+benefits. Another possibility is to define an interface but keep it private,
+only using it within a library. That avoids the problems above. It still doesn't
+seem useful in this particular example, though.
+
+So, we will define a new struct type that implements the procedure interface so
+@shape{RE} names can be used as expressions, but our macros will recognize the
+struct type specifically, without going through an additional interface
+indirection. Here is the definition:
 
 @examples[#:eval the-eval #:no-result #:escape UNQUOTE
-(require (for-syntax syntax/transformer))
-
 (begin-for-syntax
-  ;; A RE-Binding is (re-binding RE (Syntax -> Syntax))
+  (code:comment "A RE-Binding is (re-binding RE (Syntax -> Syntax))")
   (struct re-binding (ast transformer)
-    #:property prop:procedure (struct-field-index transformer))
+    #:property prop:procedure (struct-field-index transformer)))
+]
 
+When used as a procedure, an @racket[re-binding] instance just forwards the call
+to its @racket[transformer] field, so when @racket[define-re] constructs an
+@racket[re-binding] instance, it must provide a suitable transformer
+function. We can use the @racket[make-variable-like-transformer] library
+function to construct an identifier macro that always produces the same
+expansion. Here is the updated @racket[define-re]:
+
+@examples[#:eval the-eval #:no-result #:escape UNQUOTE
+;; --- Note, wrong re binding at this point, must redefine later! ---
+(require (for-syntax syntax/transformer))
+(define-syntax define-re
+  (syntax-parser
+    [(_ name:id e:re)
+     #`(define-syntax name
+         (re-binding (Quote #,(datum e.ast))
+                     (make-variable-like-transformer
+                      (quote-syntax (my-px name)))))]))
+]
+
+Now we must update @racket[re] to extract the @type{RE} AST value in the
+@shape{RE}-name case. Again, the other variants remain unchanged:
+
+@racketblock[
+(begin-for-syntax
+  (define-syntax-class re
+    #:attributes (ast) (code:comment "RE")
+    #:datum-literals (or cat * + report chars)
+    ELIDED
+    (pattern (~var name (static re-binding? "name bound to RE"))
+             #:attr ast (re-binding-ast (datum name.value)))))
+]
+
+@examples[#:eval the-eval #:hidden #:escape UNQUOTE
+;; ---- Redefine ----
+(require (for-syntax syntax/transformer))
+(begin-for-syntax
   (define-syntax-class re
     #:attributes (ast) (code:comment "RE")
     #:datum-literals (or cat * + report chars)
@@ -477,7 +555,6 @@ support forward references, at least in most contexts.
              #:attr ast (re:chars (datum (r.ast ...))))
     (pattern (~var name (static re-binding? "name bound to RE"))
              #:attr ast (re-binding-ast (datum name.value)))))
-
 (define-syntax define-re
   (syntax-parser
     [(_ name:id e:re)
@@ -485,41 +562,93 @@ support forward references, at least in most contexts.
          (re-binding (Quote #,(datum e.ast))
                      (make-variable-like-transformer
                       (quote-syntax (my-px name)))))]))
-
 (define-syntax my-px
   (syntax-parser
     [(_ e:re)
      #`(Quote #,(pregexp (emit-regexp (datum e.ast))))]))
 ]
 
-@racketblock[
-(begin-for-syntax
-  (define-syntax-class re
-    #:attributes (ast) (code:comment "RE")
-    #:datum-literals (or cat * + report chars)
-    ELIDED
-    (pattern (~var name (static re-binding? "name bound to RE"))
-             #:attr ast (re-binding-ast (datum name.value)))))
-]
-
+Now the following example works; we can use @racket[word] and @racket[spacing]
+like variables:
 
 @examples[#:eval the-eval #:label #f
-(let ()
-  (define-re word (+ (chars [#\a #\z])))
-  (define-re spacing (+ (chars #\space)))
-  (define-re para (* (cat word spacing)))
-  (list word spacing para))
+(define-re word (+ (chars [#\a #\z])))
+(define-re spacing (+ (chars #\space)))
+(define-re word+spacing (cat (report word) spacing))
+(list word spacing (my-px (* word+spacing)))
+]
+
+We can also verify that the compile-time information stored by an @shape{RE}
+name is no longer a prefab struct; it is an opaque wrapper which prints as a
+procedure:
+
+@examples[#:eval the-eval #:label #f
+(phase1-eval (syntax-local-value (quote-syntax word)))
 ]
 
 
+@exercise[#:tag "static:print"]{Update the definition of @racket[re-binding] so
+that instances of the struct print as @racket["#<RE>"]. You can do this by
+implementing the @racket[prop:custom-write] interface.
 
+@racketblock[
+(phase1-eval (format "~s" (syntax-local-eval (quote-syntax word))))
+(code:comment "expect \"#<RE>\"")
+]}
 
+@exercise[#:tag "static:match" #:stars 1]{Update the definition of
+@racket[re-binding] so that it also acts as a match pattern name. As a match
+pattern, it takes some number of pattern arguments; these are the patterns used
+to match the regular expression's @racket[report] results. That is, an
+@shape{RE} name used as a match pattern expands like this:
 
+@racketblock[
+(word+spacing pat)
+==>
+(pregexp word+spacing (list _ pat))
+]
 
+See @racket[match] for an explanation of the syntax of match patterns; see
+@racket[prop:match-expander] for an explanation of the interface.}
+
+@exercise[#:tag "static:match2" #:stars 2]{Update your solution to
+@exercise-ref["static:match"] to check that when used as a match pattern, the
+@shape{RE} name receives the correct number of arguments. That is, the first
+example below should succeed (because @racket[word+spacing] has one
+@racket[report]), but the others should cause an error:
+@racketblock[
+(word+spacing the-word)         (code:comment "okay")
+(word+spacing the-word extra)   (code:comment "error: wrong number of patterns, expected 1")
+(spacing the-spaces)            (code:comment "error: wrong number of patterns, expected 0")
+]}
 
 
 @; ------------------------------------------------------------
 @section[#:tag "two-pass"]{Two-Pass Expansion}
+
+To support forward references requires knowing a little about how Racket
+processes definitions.
+
+The Racket macro expander processes definition contexts (module bodies,
+@racket[lambda] bodies, and so on) in two passes. The first pass discovers
+definitions; the second pass expands (remaining) expressions.
+
+In the first pass, Racket expands each body term until it reaches a core form,
+but it does not recur into the core form's sub-expressions. Once it reaches a
+core form, it does a shallow case analysis. If the form is
+@racket[define-values], it marks the names as variables in the local
+environment. If the form is @racket[define-syntaxes], it evaluates the
+right-hand side as a compile-time expression and binds the names statically. If
+the form is @racket[begin], it flattens it away and recurs on the contents. (So
+a macro can expand into multiple definitions by grouping them with
+@racket[begin].) Otherwise the form is an expression form, and it leaves that
+until the next pass. After the case analysis, it continues to the next body term.
+
+In the second pass, the expander knows all of the names bound in the recursive
+definition context, both variable names and static names. The expander then
+processes the remaining expressions: the sub-expressions of core expression
+forms and the right-hand sides of @racket[define-values] definitions.
+
 
 
 
@@ -585,6 +714,84 @@ support forward references, at least in most contexts.
   (define-re rec (cat (chars #\a) rec))
   'whatever))
 ]
+
+
+
+@; ----------------------------------------
+@subsection[#:tag "two-pass-scoping"]{The Peculiarities of Scoping in Two-Pass Expansion}
+
+The two-pass expansion and its treatment of macros means that definition
+contexts in Racket are not purely recursive; they also have a slight sequential
+aspect. Consider the behavior of the following example:
+@examples[#:eval the-eval #:label #f
+(let ()
+  (define-syntax m
+    (syntax-parser
+      [(_ e:expr) #'(printf "outer ~s\n" e)]))
+  (let ()
+    (m (begin (m 123) 456))
+    (define-syntax m
+      (syntax-parser
+        [(_ e:expr) #'(printf "inner ~s\n" e)]))
+    (m 789)))
+]
+
+Simple recursive scoping would predict that all three references to @racket[m]
+in the inner @racket[let] body refer to the inner definition of @racket[m]. But
+the first use of @racket[m] is head-expanded before the inner definition of
+@racket[m] is discovered, so it refers to the outer definition. It's argument,
+though, is not expanded until pass two, so it refers to the inner @racket[m], as
+does the third use of @racket[m]. The third use of @racket[m] is expanded before
+the second, though.
+
+What if we simply delete the outer macro definition?
+@examples[#:eval the-eval #:label #f
+(let ()
+  (let ()
+    (m (begin (m 123) 456))
+    (define-syntax m
+      (syntax-parser
+        [(_ e:expr) #'(printf "inner ~s\n" e)]))
+    (m 789)))
+]
+
+Now in pass one the expander assumes that the first use of @racket[m] is a
+function application, and @racket[m] is a variable that might be defined
+later. So it saves the whole expression for pass two. Then in pass two it
+realizes that the expression is not a function application but a macro
+application, and it expands the macro. This is good, right? It's what one would
+expect given a macro definition in a recursive scope.
+
+But there are limits. Consider the following example, where the macro produces a
+definition instead of an expression:
+@examples[#:eval the-eval #:label #f
+(eval:error
+(let ()
+  (m a)
+  (define-syntax m
+    (syntax-parser
+      [(_ x:id) #'(define x 1)]))
+  (m b)
+  (+ a b)))
+]
+As in the previous example, the macro expansion initially classifies the first
+use of @racket[m] as a function application. In the second pass, though, when it
+expands the macro, it expands it in a strict expression context. That is because
+it is unwilling to make further changes to the environment in the second pass;
+it is frozen at the end of the first pass.
+
+The greatest scoping peculiarities of definition contexts arise from macro names
+that are shadowed in the middle of an inner scope.
+
+@lesson{Don't shadow macro names.}
+
+Unfortunately, many names in Racket that seem like variable names are actually
+implemented as macro bindings. One example is functions with keyword arguments,
+to reduce run-time overhead for keyword checking and default arguments. Another
+example is bindings exported with @racket[contract-out], to compute the negative
+blame party from the use site.
+
+@lesson{As much as possible, avoid shadowing entirely.}
 
 
 
