@@ -130,9 +130,9 @@ functionality. Let's wrap up the code above as module:
   (require racket/match racket/string)
   (provide (struct-out re:or)
            (struct-out re:cat)
-           ___
+           ELIDED
            emit-regexp)
-  ___)
+  ELIDED)
 ]
 
 We can leave a friendlier front end as a task for a separate module.
@@ -649,16 +649,106 @@ definition context, both variable names and static names. The expander then
 processes the remaining expressions: the sub-expressions of core expression
 forms and the right-hand sides of @racket[define-values] definitions.
 
+@; ----------------------------------------
+@subsection[#:tag "ct-fwd-ref"]{Forward References}
 
+How can we support forward references for compile-time data?
 
+Since static definitions are evaluated in order, the static information for a
+@shape{RE} name cannot just contain an @type{RE} AST value. It must contain a
+thunk or promise or something similar that allows us to get the AST value on
+demand. Let's use a promise. Here is the updated struct definition:
 
 @examples[#:eval the-eval #:no-result #:escape UNQUOTE
+(require (for-syntax racket/promise))
+(begin-for-syntax
+  (code:comment "A RE-Binding is (re-binding (Promise RE) (Syntax -> Syntax))")
+  (struct re-binding (astp transformer)
+    #:property prop:procedure (struct-field-index transformer)))
+]
+
+Now @racket[define-re] cannot eagerly parse the @shape{RE} term; instead, it
+must create a promise that parses it later. Here's one implementation:
+
+@examples[#:eval the-eval #:no-result #:escape UNQUOTE
+(begin-for-syntax
+  (code:comment "parse-re-from-def : Syntax -> RE")
+  (code:comment "Receives the entire `define-re` term.")
+  (define (parse-re-from-def stx)
+    (syntax-parse stx
+      [(_ _ e:re) (datum e.ast)])))
+
+(define-syntax define-re
+  (syntax-parser
+    [(_ name:id _)
+     #`(begin
+         (define-syntax name
+           (re-binding (delay (parse-re-from-def (quote-syntax #,this-syntax)))
+                       (make-variable-like-transformer
+                        (quote-syntax (my-px name)))))
+         (void (my-px name)))]))
+]
+
+Within a @racket[syntax-parser] clause, @racket[this-syntax] is bound to the
+syntax object currently being parsed. In this case, that's the syntax of the
+@racket[define-re] use. The reason for passing the whole definition syntax to
+@racket[parse-re-from-def] instead of just the @shape{RE} term is that by
+default @racket[syntax-parse] reports syntax errors using the leading identifier
+of its argument as the ``complaining party''. (This behavior can be overridden
+with the @racket[#:context] argument, though.)
+
+Why does the expansion include @racket[(void (my-px name))]? That expression
+ensures that the promise eventually gets forced. Since it occurs within an
+expression, it is delayed until pass two, when all forward references should
+have been defined. If we left it out, then a syntactically invalid @shape{RE}
+definition would be accepted as long as it was never used.
+
+Finally, we must update @racket[re] to force the promise from a @shape{RE}
+name. Here is a basic implementation:
+@racketblock[
+(begin-for-syntax
+  (define-syntax-class re
+    #:attributes (ast) (code:comment "RE")
+    #:datum-literals (or cat * + report chars)
+    ELIDED
+    (pattern (~var name (static re-binding? "name bound to RE"))
+             #:attr ast (force (re-binding-astp (datum name.value))))))
+]
+
+One flaw in this implementation is that if it is given a recursive @shape{RE}
+definition, it produces an internal error about re-entrant promises. Here is a
+version that uses a parameter to detect that situation and signals a better
+error:
+
+@racketblock[
+(begin-for-syntax
+  (code:comment "running : (Parameter (Promise RE))")
+  (code:comment "Currently running RE promises, used to detect cycles.")
+  (define running (make-parameter null))
+
+  (define-syntax-class re
+    #:attributes (ast) (code:comment "RE")
+    #:datum-literals (or cat * + report chars)
+    ELIDED
+    (pattern (~var name (static re-binding? "name bound to RE"))
+             #:attr ast (let ([p (re-binding-ast (datum name.value))])
+                          (when (member p (running))
+                            (raise-syntax-error #f "recursive RE" #'name))
+                          (parameterize ((running (cons p (running))))
+                            (force p))))))
+]
+
+
+@examples[#:eval the-eval #:hidden #:escape UNQUOTE
+;; ---- Update ----
 (require (for-syntax racket/promise syntax/transformer))
 
 (begin-for-syntax
   ;; A RE-Binding is (re-binding (Promise RE) (Syntax -> Syntax))
   (struct re-binding (ast transformer)
     #:property prop:procedure (struct-field-index transformer))
+
+  (define running (make-parameter null))
 
   (define-syntax-class re
     #:attributes (ast) (code:comment "RE")
@@ -676,11 +766,23 @@ forms and the right-hand sides of @racket[define-values] definitions.
     (pattern (chars r:char-range ...+)
              #:attr ast (re:chars (datum (r.ast ...))))
     (pattern (~var name (static re-binding? "name bound to RE"))
-             #:attr ast (force (re-binding-ast (datum name.value)))))
+             #:attr ast (let ([p (re-binding-ast (datum name.value))])
+                          (when (member p (running))
+                            (raise-syntax-error #f "recursive RE" #'name))
+                          (parameterize ((running (cons p (running))))
+                            (force p))))
+    #;
+    (pattern (~var name (static re-binding? "name bound to RE"))
+             #:attr ast (let ([p (re-binding-ast (datum name.value))])
+                          (cond [(member p (running)) #f]
+                                [else (parameterize ((running (cons p (running))))
+                                        (force p))]))
+             #:fail-when (if (datum ast) #f #'name) "recursive RE")
 
-  ;; parse-re : Syntax -> RE
-  ;; Gets entire `define-re` term.
-  (define (parse-re stx)
+    ))
+
+(begin-for-syntax
+  (define (parse-re-from-def stx)
     (syntax-parse stx
       [(_ _ e:re) (datum e.ast)])))
 
@@ -689,7 +791,7 @@ forms and the right-hand sides of @racket[define-values] definitions.
     [(_ name:id _)
      #`(begin
          (define-syntax name
-           (re-binding (delay (parse-re (quote-syntax #,this-syntax)))
+           (re-binding (delay (parse-re-from-def (quote-syntax #,this-syntax)))
                        (make-variable-like-transformer
                         (quote-syntax (my-px name)))))
          (void (my-px name)))]))
@@ -700,6 +802,8 @@ forms and the right-hand sides of @racket[define-values] definitions.
      #`(Quote #,(pregexp (emit-regexp (datum e.ast))))]))
 ]
 
+With those changes, forward references work, at least within modules and within
+internal definition contexts like @racket[let] bodies:
 
 @examples[#:eval the-eval #:label #f
 (let ()
@@ -708,13 +812,30 @@ forms and the right-hand sides of @racket[define-values] definitions.
   (printf "word = ~s\n" word)
   (define-re spacing (+ (chars #\space)))
   para)
+]
 
+We get reasonable messages for the following error cases:
+
+@examples[#:eval the-eval #:label #f
+(eval:error
+(let ()
+  (define-re uses-undef (cat (chars #\a) undef))
+  'whatever))
 (eval:error
 (let ()
   (define-re rec (cat (chars #\a) rec))
   'whatever))
 ]
 
+
+There are other ways we could manage the delayed resolution of @shape{RE}
+names. For example, we could extend the AST type with a new variant for names,
+eagerly parse most of the AST and create promises only for instances of the name
+variant. One benefit of that approach is that most @shape{RE} syntax errors
+could be caught when the definition is processed instead of when the promise is
+forced. Some drawbacks are that it requires adding a new function to traverse
+the AST forcing the name nodes, and it involves either changing the @type{RE}
+type or creating a substantially similar @type{RE-With-Promises} type.
 
 
 @; ----------------------------------------
