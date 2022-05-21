@@ -18,6 +18,7 @@
 @include-section["part-multi.scrbl"]
 @include-section["part-recursive.scrbl"]
 @include-section["part-static.scrbl"]
+@include-section["part-unhygienic.scrbl"]
 
 @;{
 

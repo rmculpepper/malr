@@ -217,7 +217,7 @@ The result shows that the macro's @racket[out] binding does not interfere with
 the use-site's @racket[out] variable. We say that the @racket[catch-output]
 macro is ``hygienic''.
 
-A macro is @emph{hygienic} if it follows these two lexical scoping principles:
+A macro is @deftech{hygienic} if it follows these two lexical scoping principles:
 @itemlist[#:style 'ordered
 
 @item{A @emph{use-site binding} does not capture a @emph{definition-site
