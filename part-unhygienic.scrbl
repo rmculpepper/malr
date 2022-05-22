@@ -211,6 +211,55 @@ syntax object. That's okay, as long as we treat @racket[name?-string] as a
 out by replacing @racket[(Quote name?-string)] with @racket[name?-string] in the
 macro's syntax template.}
 
+@exercise[#:tag "unh-enum"]{Update the implementation of @racket[my-hash-view]
+to allow field names to have different hash keys. That is, generalize the shape
+to the following:
+@codeblock{
+;; (my-hash-view v:Id [fs:FieldSpec ...]) : Body[{v,v?,v-fs.fn...}]
+;; where FieldSpec ::= fn:Id | [fn:Id #:key Datum]
+}
+Here is an example to illustrate the intended behavior:
+@racketblock[
+(my-hash-view post (author [link #:key resource_href]))
+(define post1 (hash 'author "Ryan" 'resource_href "/malr/unhygienic.html"))
+(post-link post1) (code:comment "expect \"/malr/unhygienic.html\"")
+]
+Hint: use the @tech{common meaning} interface strategy.}
+
+@exercise[#:tag "unh-static"]{Update the implementation of @racket[my-hash-view]
+so that the hash view name acts both as a constructor and as a @racket[match]
+pattern name. That is, the hash view name should be statically bound to a
+compile-time struct implementing both the procedure interface and the
+@racket[match] expander interface. You should define the actual constructor
+function with a different name and expand to it using
+@racket[make-variable-like-transformer]. For the match expander, use the
+@racket[?] and @racket[app] match pattern forms. That is, as a match pattern,
+@racket[point] behaves as follows:
+@racketblock[
+(point x-pat y-pat)
+==>
+(? point? (app point-x x-pat) (app point-y y-pat))
+]}
+
+@exercise[#:tag "unh-static2" #:stars 1]{Update your solution to
+@exercise-ref["unh-static"] to also support hash view extension (or
+``subtyping''). That is, the value statically bound to hash-view name must
+support three interfaces: the procedure interface, the @racket[match] expander
+interface, and a private interface that carries enough information to support
+view extension.
+
+Here are some examples to illustrate the expected behavior:
+@racketblock[
+(my-hash-view point (x y))
+(my-hash-view point3 #:super point (z))
+(define p3 (point3 1 2 3))
+(point? p3) (code:comment "expect #t")
+(point3? p3) (code:comment "expect #t")
+(point-x p3) (code:comment "expect 1")
+(point3-z p3) (code:comment "expect 3")
+(match p3 [(point x y) (+ x y)]) (code:comment "expect 3")
+(match p3 [(point3 x y z) (+ x y z)]) (code:comment "expect 6")
+]}
 
 @; ------------------------------------------------------------
 @section[#:tag "unclean-hygienic"]{Unclean Unhygienic Macros}
