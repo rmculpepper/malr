@@ -96,8 +96,8 @@ example let's go ahead and compute it at compile time. The other part of the
 code that is a bit tricky to produce is the body of the constructor function:
 @racket[(hash 'x x 'y y)]. The @racket[hash] arguments do not consist of a
 single repeated term, but rather each repetition consists of two
-terms. Fortunately, Racket's syntax template support ungrouped repetition using
-the @racket[~@] template form.
+terms. Fortunately, Racket's syntax templates support multi-term repetition
+using the @racket[~@] template form.
 
 Before we continue to the implementation of the macro, we can also use this
 hand-expansion to run our tests, to check that the expansion works before we
@@ -236,9 +236,9 @@ function with a different name and expand to it using
 @racket[?] and @racket[app] match pattern forms. That is, as a match pattern,
 @racket[point] behaves as follows:
 @racketblock[
-(point x-pat y-pat)
+(point _x-pat _y-pat)
 ==>
-(? point? (app point-x x-pat) (app point-y y-pat))
+(? point? (app point-x _x-pat) (app point-y _y-pat))
 ]}
 
 @exercise[#:tag "unh-static2" #:stars 1]{Update your solution to
