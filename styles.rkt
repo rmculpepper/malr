@@ -42,6 +42,8 @@
          malr-version
          tech/reference
          tech/guide
+         secref/reference
+         secref/guide
          lesson
          lesson*
          later
@@ -133,6 +135,11 @@
   (apply tech #:key key #:doc reference-doc pre-content))
 (define (tech/guide #:key [key #f] . pre-content)
   (apply tech #:key key #:doc guide-doc pre-content))
+
+(define (secref/reference name)
+  (secref #:doc reference-doc name))
+(define (secref/guide name)
+  (secref #:doc guide-doc name))
 
 ;; ----
 
