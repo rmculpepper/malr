@@ -29,7 +29,7 @@ expression.
 
 
 @; ------------------------------------------------------------
-@section[#:tag "add-interpret"]{Adding Interpretations to Expressions}
+@section[#:tag "add-interp"]{Adding Interpretations to Expressions}
 
 The standard interpretation of an expression is run-time evaluation, which is a
 relatively opaque process. In general, if we want to know something about how an
@@ -178,6 +178,12 @@ Here is an example:
 @; => id-tables?
 
 
+
+@; ------------------------------------------------------------
+@section[#:tag "change-interp"]{Changing the Interpretation of Expressions}
+
+@;{ FIXME: trace function calls with printf
+    limitation: calls within functions defined elsewhere are not traced }
 
 
 @; FIXME: (let-lazy ([x:Id Expr] ...) Expr{x...}) -- use promise, identifier macros
