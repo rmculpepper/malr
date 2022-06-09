@@ -286,7 +286,7 @@ each character in the string. For example:
 
 
 @; ------------------------------------------------------------
-@section[#:tag "static-shape"]{The Static Shape}
+@section[#:tag "static-shape"]{The Static Reference Shape}
 
 The @shape{Static[T]} shape is a parameterized shape that recognizes identifiers
 that refer to compile-time information of type @type{T}. The interpretation of a
@@ -690,7 +690,7 @@ must create a promise that parses it later. Here's one implementation:
 ]
 
 Within a @racket[syntax-parser] clause, @racket[this-syntax] is bound to the
-syntax object currently being parsed. In this case, that's the syntax of the
+syntax object currently being parsed. In this case, that is the syntax of the
 @racket[define-re] use. The reason for passing the whole definition syntax to
 @racket[parse-re-from-def] instead of just the @shape{RE} term is that by
 default @racket[syntax-parse] reports syntax errors using the leading identifier
@@ -860,7 +860,7 @@ aspect. Consider the behavior of the following example:
 Simple recursive scoping would predict that all three references to @racket[m]
 in the inner @racket[let] body refer to the inner definition of @racket[m]. But
 the first use of @racket[m] is head-expanded before the inner definition of
-@racket[m] is discovered, so it refers to the outer definition. It's argument,
+@racket[m] is discovered, so it refers to the outer definition. Its argument,
 though, is not expanded until pass two, so it refers to the inner @racket[m], as
 does the third use of @racket[m]. The third use of @racket[m] is expanded before
 the second, though.
@@ -880,7 +880,7 @@ Now in pass one the expander assumes that the first use of @racket[m] is a
 function application, and @racket[m] is a variable that might be defined
 later. So it saves the whole expression for pass two. Then in pass two it
 realizes that the expression is not a function application but a macro
-application, and it expands the macro. This is good, right? It's what one would
+application, and it expands the macro. This is good, right? It is what one would
 expect given a macro definition in a recursive scope.
 
 But there are limits. Consider the following example, where the macro produces a

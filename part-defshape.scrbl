@@ -244,12 +244,18 @@ a first attempt that isn't quite right:
 These examples illustrate the problem:
 @examples[#:eval the-eval #:label #f
 (my-evcase1 (begin (printf "got a coin!\n") (* 5 5))
-  [5 "nickel"] [10 "dime"] [25 "quarter"] [(/ 0) "infinite money!"])
+  [5 "nickel"]
+  [10 "dime"]
+  [25 "quarter"]
+  [(/ 0) "infinite money!"])
 (define coins '(25 5 10 5))
 (define (get-coin) (begin0 (car coins) (set! coins (cdr coins))))
 (eval:error
 (my-evcase1 (get-coin)
-  [5 "nickel"] [10 "dime"] [25 "quarter"] [(/ 0) "infinite money!"]))
+  [5 "nickel"]
+  [10 "dime"]
+  [25 "quarter"]
+  [(/ 0) "infinite money!"]))
 ]
 The initial expression is re-evaluated for every comparison, which is
 problematic if the expression has side-effects.
@@ -268,11 +274,17 @@ of the first expression:
 Now the examples behave as expected:
 @examples[#:eval the-eval #:label #f
 (my-evcase1 (begin (printf "got a coin!\n") (* 5 5))
-  [5 "nickel"] [10 "dime"] [25 "quarter"] [(/ 0) "infinite money!"])
+  [5 "nickel"]
+  [10 "dime"]
+  [25 "quarter"]
+  [(/ 0) "infinite money!"])
 (define coins '(25 5 10 5))
 (define (get-coin) (begin0 (car coins) (set! coins (cdr coins))))
 (my-evcase1 (get-coin)
-  [5 "nickel"] [10 "dime"] [25 "quarter"] [(/ 0) "infinite money!"])
+  [5 "nickel"]
+  [10 "dime"]
+  [25 "quarter"]
+  [(/ 0) "infinite money!"])
 ]
 
 @exercise[#:tag "defshape-test"]{Turn the examples above into test cases for

@@ -87,7 +87,10 @@ takes a single expression argument. The expression is evaluated, but its result
 is ignored; instead, the result of the macro is a string containing all of the
 output written by the expression. For example:
 
-@racketblock[(catch-output (for ([i 10]) (printf "~s" i))) (code:comment "expect \"0123456789\"")]}
+@racketblock[
+(catch-output (for ([i 10]) (printf "~s" i)))
+(code:comment "expect \"0123456789\"")
+]}
 
 
 @; ------------------------------------------------------------
@@ -151,7 +154,9 @@ strict @shape{Expr} position.
 @exercise-ref["basic:catch-output"]; does the macro also accept @shape{Body}
 terms like the one above? That is, does the following work?
 @racketblock[
-(catch-output (begin (define q (quotient n 2)) (printf "q = ~s\n" q)))
+(catch-output
+ (begin (define q (quotient n 2))
+        (printf "q = ~s\n" q)))
 ]
 If so, ``fix it'' (that is, make it more restrictive) using
 @racket[#%expression].}
@@ -232,7 +237,7 @@ situations when it is useful to break hygiene.
 
 
 @; ------------------------------------------------------------
-@section[#:tag "basic-id"]{The Id (Identifier) Shape}
+@section[#:tag "basic-id"]{The Identifier Shape}
 
 The @shape{Id} shape contains all identifier terms.
 
@@ -280,7 +285,7 @@ the value of the first expression. Let's put that information in the shape of
 the name of the pattern variable, but it makes sense to use the same name here.}
 
 @item{Add an @emph{environment annotation} to the second @shape{Expr} indicating
-that it's in the scope of a variable whose name is whatever actual identifier
+that it is in the scope of a variable whose name is whatever actual identifier
 @shape{x} refers to: @shape{Expr{x}}.}
 
 ]
@@ -505,8 +510,8 @@ behavior at all. Likewise, a plain identifier is not necessarily a variable
 reference; it might be an identifier macro, or it might have a nonstandard
 @racket[#%top] binding.
 
-In later sections (FIXME-REF), we'll talk about how to cooperate with
-the macro expander to do case analysis of expressions and other forms.}
+In later sections (@secref["reinterpret"]), we'll talk about how to cooperate
+with the macro expander to do case analysis of expressions and other forms.}
 
 @item{In general, a macro should not duplicate an argument expression. That is,
 the expression should occur exactly once in the macro's expansion. Duplicating

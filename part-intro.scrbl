@@ -161,7 +161,8 @@ Here is the macro definition:
   (syntax-parser
     [(_ condition:expr)
      (Syntax (unless condition
-               (error 'assert "assertion failed: ~e" (Quote condition))))]))
+               (error 'assert "assertion failed: ~s"
+                      (Quote condition))))]))
 ]
 
 Here is an overview of the macro definition:
@@ -366,11 +367,13 @@ instead. That is, @litchar{#'} is a reader macro for @racket[syntax]. So the
   (syntax-parser
     [(_ condition:expr)
      #'(unless condition
-         (error 'assert "assertion failed: ~e" (Quote condition)))]))
+         (error 'assert "assertion failed: ~s"
+                (Quote condition)))]))
 ]
 
 The @racket[syntax-parser] form is basically a combination of @racket[lambda]
 and @racket[syntax-parse]. So the following definition is equivalent:
+
 @examples[#:eval the-eval #:no-result
 (code:comment "(assert Expr) : Expr")
 (define-syntax assert
@@ -378,8 +381,10 @@ and @racket[syntax-parse]. So the following definition is equivalent:
     (syntax-parse stx
       [(_ condition:expr)
        #'(unless condition
-           (error 'assert "assertion failed: ~e" (Quote condition)))])))
+           (error 'assert "assertion failed: ~s"
+                  (Quote condition)))])))
 ]
+
 The @racket[define-syntax] form supports ``function definition'' syntax like
 @racket[define] does, so the following is also allowed:
 @examples[#:eval the-eval #:no-result
@@ -388,7 +393,8 @@ The @racket[define-syntax] form supports ``function definition'' syntax like
   (syntax-parse stx
     [(_ condition:expr)
      #'(unless condition
-         (error 'assert "assertion failed: ~e" (Quote condition)))]))
+         (error 'assert "assertion failed: ~s"
+                (Quote condition)))]))
 ]
 
 A macro's transformer function is, in a sense just an ordinary Racket function,
@@ -405,7 +411,8 @@ the implementation of @racket[assert].
     (syntax-parse stx
       [(_ condition:expr)
        #'(unless condition
-           (error 'assert "assertion failed: ~e" (Quote condition)))])))
+           (error 'assert "assertion failed: ~s"
+                  (Quote condition)))])))
 (code:comment "(assert Expr) : Expr")
 (define-syntax assert assert-transformer)
 ]
@@ -448,7 +455,8 @@ written using those systems:
   (syntax-case stx ()
     [(_ condition)
      #'(unless condition
-         (error 'assert "assertion failed: ~s" (Quote condition)))]))
+         (error 'assert "assertion failed: ~s"
+                (Quote condition)))]))
 ]
 
 For a macro as simple as @racket[assert], there isn't much difference. All of
@@ -465,10 +473,10 @@ object API. Here's one version:
 @examples[#:eval the-eval #:no-result
 (define-syntax assert
   (lambda (stx)
-    (define parts (syntax->list stx)) (code:comment "parts : (U (Listof Syntax) #f)")
+    (define parts (syntax->list stx)) (code:comment "(U (Listof Syntax) #f)")
     (unless (and (list? parts) (= (length parts) 2))
       (raise-syntax-error #f "bad syntax" stx))
-    (define condition-stx (cadr parts)) (code:comment "condition-stx : Syntax[Expr]")
+    (define condition-stx (cadr parts)) (code:comment "Syntax[Expr]")
     (define code
       (list (quote-syntax unless) condition-stx
             (list (quote-syntax error) (quote-syntax (quote assert))
@@ -493,12 +501,13 @@ Here is a variant of the previous definition that uses @racket[quasisyntax]
 @examples[#:eval the-eval #:no-result #:escape UNQUOTE
 (define-syntax assert
   (lambda (stx)
-    (define parts (syntax->list stx)) (code:comment "parts : (U (Listof Syntax) #f)")
+    (define parts (syntax->list stx)) (code:comment "(U (Listof Syntax) #f)")
     (unless (and (list? parts) (= (length parts) 2))
       (raise-syntax-error #f "bad syntax" stx))
-    (define condition-stx (cadr parts)) (code:comment "condition-stx : Syntax[Expr]")
+    (define condition-stx (cadr parts)) (code:comment "Syntax[Expr]")
     #`(unless #,condition-stx
-        (error 'assert "assertion failed: ~s" (quote #,condition-stx)))))
+        (error 'assert "assertion failed: ~s"
+               (Quote #,condition-stx)))))
 ]
 
 It is not a goal of this guide to introduce you to every bit of machinery that

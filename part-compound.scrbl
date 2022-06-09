@@ -354,7 +354,10 @@ the result of the macro. If no clause matches, the result is @racket[(void)].
 
 @racketblock[
 (my-evcase1 (begin (printf "got a coin!\n") (* 5 5))
-  [5 "nickel"] [10 "dime"] [25 "quarter"] [(/ 0) "infinite money!"])
+  [5 "nickel"]
+  [10 "dime"]
+  [25 "quarter"]
+  [(/ 0) "infinite money!"])
 (code:comment "expect print once, result = \"quarter\"")
 ]}
 

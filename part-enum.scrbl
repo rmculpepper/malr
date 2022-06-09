@@ -492,9 +492,9 @@ is a first draft of the corresponding syntax class definition, based on the
     #:attributes (code) (code:comment "Expr[(-> Any) -> Any]")
     #:literals (=>)
     (pattern [condition:expr result:expr ...+]
-             #:with code ___)
+             #:with code ELIDED)
     (pattern [condition:expr => get-result:expr]
-             #:with code ___)))
+             #:with code ELIDED)))
 ]
 The problem is that a clause term like @racket[[a => b]] matches the first
 pattern, and so the syntax class interprets it as a simple condition and
@@ -514,9 +514,9 @@ first pattern after seeing @racket[=>]. Here is the code:
     #:attributes (code) (code:comment "Expr[(-> Any) -> Any]")
     #:literals (=>)
     (pattern [condition:expr => ~! get-result:expr]
-             #:with code ___)
+             #:with code ELIDED)
     (pattern [condition:expr result:expr ...+]
-             #:with code ___)))
+             #:with code ELIDED)))
 ]
 
 Without the @racket[~!], a term like @racket[[a => b c]] would be considered a

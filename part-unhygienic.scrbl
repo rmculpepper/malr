@@ -472,12 +472,22 @@ back to its second sub-template. We can define the macro as follows:
 
 Here is an example:
 
+@;{
 @examples[#:eval the-eval #:label #f
 (define n 2022)
 (while #t #:break stop
   (cond [(= n 1) (printf "\n") (stop)]
         [(even? n) (printf "⌄") (set! n (quotient n 2))]
         [(odd? n) (printf "⌃") (set! n (add1 (* n 3)))]))
+]
+}
+
+@examples[#:eval the-eval #:label #f
+(define n 2022)
+(while #t #:break stop
+  (cond [(= n 1) (printf "\n") (stop)]
+        [(even? n) (printf "↑") (set! n (quotient n 2))]
+        [(odd? n) (printf "↓") (set! n (add1 (* n 3)))]))
 ]
 
 Here is the equivalent definition with a separate syntax class:

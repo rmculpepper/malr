@@ -55,7 +55,8 @@
          make-malr-eval
          cc-footer)
 
-(define draft-mode? #t)
+(define draft-mode? (and (getenv "DRAFT") #t))
+(define PDF? (and (getenv "PDF") #t))
 
 (define malr-version
   (let ([now (current-date)])
@@ -109,9 +110,10 @@
   (make-element-id-transformer (lambda _ #'(grey "····")))) ;; or ⋯⋯
 
 (define (grey . content)
-  (apply elem #:style (style #f (list (color-property "gray"))) content))
+  (apply elem #:style (style #f (list (color-property "Gray"))) content))
 (define (lightgrey . content)
-  (apply elem #:style (style #f (list (color-property "lightgray"))) content))
+  (define colorname (if PDF? "Gray" "lightgray"))
+  (apply elem #:style (style #f (list (color-property colorname))) content))
 
 (define-syntax ALT
   (make-element-id-transformer (lambda _ #'(elem "|"))))
