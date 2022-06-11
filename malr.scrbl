@@ -33,18 +33,22 @@ Add to existing sections:
     - If you didn't follow the design recipe, you missed the point! Fail!
 
 Next sections:
-- breaking hygiene (hash-view)
 - compile-time API
   - write transformers, not macro-generating-macros
-  - set!-transformers (define-box-variable, define-parameter-variable)
-- ids bound to static info (match-hash-view)
-  - first with separate names
-  - then combine names (one struct, two interfaces)
+- identifier macros, set!-transformers
+  - define-box-variable, define-parameter-variable
 - local-expand
   - test for quoted value
   - assert macro that prints (selected) free variable values!
 - "polylithic" macros
   - Idea: syntax-parameter for error reporting?
+
+- hash-from-definitions - produces (mutable?) hash
+  - v1: include all definitions as keys
+    - problem: identifier => symbol is not injective
+  - v2: only include symbols declared "public"
+  - v3: (alt) only include symbols with same lexical scope...
+  - v4: add base, import keys
 
 Racket changes:
 - `body`, etc syntax classes
