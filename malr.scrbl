@@ -37,6 +37,7 @@ Next sections:
   - write transformers, not macro-generating-macros
 - identifier macros, set!-transformers
   - define-box-variable, define-parameter-variable
+  - (let-lazy ([x:Id Expr] ...) Expr{x...}) -- use promise, identifier macros
 - local-expand
   - test for quoted value
   - assert macro that prints (selected) free variable values!
@@ -49,6 +50,8 @@ Next sections:
   - v2: only include symbols declared "public"
   - v3: (alt) only include symbols with same lexical scope...
   - v4: add base, import keys
+
+- updated, mini version of Advanced Macrology & Typed Scheme ?
 
 Racket changes:
 - `body`, etc syntax classes
