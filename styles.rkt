@@ -253,3 +253,6 @@
                     #'(unless condition
                         (error 'assert "failed: ~s" (quote condition)))]))))
   the-eval)
+
+;; See https://emojipedia.org/toolbox/
+(define tools-emoji "🛠️") ;; hammer and wrench

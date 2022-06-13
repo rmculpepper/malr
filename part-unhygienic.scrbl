@@ -520,6 +520,7 @@ name that takes on different meanings in different contexts. This is analogous
 to run-time @tech/reference{parameter} values, so the feature is called a
 @emph{syntax parameter}.
 
+FIXME: finish
 
 
 @(close-eval the-eval)

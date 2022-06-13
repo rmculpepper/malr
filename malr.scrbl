@@ -20,6 +20,7 @@
 @include-section["part-static.scrbl"]
 @include-section["part-unhygienic.scrbl"]
 @include-section["part-reinterpret.scrbl"]
+@include-section["part-reinterpret2.scrbl"]
 
 @;{
 
@@ -56,6 +57,7 @@ Next sections:
 Racket changes:
 - `body`, etc syntax classes
 - #:check / ~check, more flexible error reporting
+- lock syntax to given interpretation
 
 }
 

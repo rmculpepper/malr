@@ -8,13 +8,13 @@
           "styles.rkt"
           (for-label racket/base syntax/parse syntax/datum racket/match syntax/macro-testing
                      racket/string racket/struct-info syntax/transformer racket/syntax
-                     racket/contract racket/list rackunit))
+                     racket/contract racket/list rackunit syntax/parse/experimental/template))
 
 @(define the-eval (make-malr-eval))
 @(the-eval '(require racket/match racket/string (for-syntax racket/list)))
 
 @; ============================================================
-@title[#:tag "reinterpret"]{Reinterpreting Racket}
+@title[#:tag "reinterpret"]{Reinterpreting Expressions}
 
 In @secref["basic-expr-uses"] I said that a macro must not look at the contents
 of an expression, because expressions are macro-extensible and so there is no
@@ -319,13 +319,19 @@ Here are some basic examples:
 ]
 
 Now we are finally ready to return to @racket[assert]. We expand the condition
-expression and get its free variables. We also want to evaluate the condition
-expression at run time, but if we use @racket[condition] in the template then we
-are effectively using @racket[condition] twice --- it's essentially the same as
-duplicating the expression. Instead, we should use the expanded expression,
-@racket[econdition]. Finally, if the condition fails we call a helper function
-to raise the error, passing it an association list containing each variable's
-symbolic name and its value.
+expression and get its free variables. If the condition fails we call a helper
+function to raise the error, passing it an association list containing each
+variable's symbolic name and its value.
+
+We want to evaluate the condition expression at run time, but if we use
+@racket[condition] in the template then we are effectively using
+@racket[condition] twice --- it's essentially the same as duplicating the
+expression. Instead, we should use the expanded expression, @racket[econdition].
+This is one of the great strengths of the macro approach to metaprogramming:
+expanding an expression results in another valid expression, not some different
+kind of value. The result has a known, fixed structure
+(@shape{FullyExpandedExpr}) that allows us to analyze it, but it can also be
+treated as a simple @shape{Expr} and fed back to the macro expander.
 
 @examples[#:eval the-eval #:no-result #:escape UNQUOTE
 (define-syntax assert
@@ -441,12 +447,12 @@ macro. That would be a scoping error in @racket[let-if-needed].}
 A macro can also @emph{change} the interpretation of an expression by
 @racket[local-expand]ing it and transforming the result.
 
-Let's design a @racket[trace-apps] macro that takes an expression and evaluates
+Let's design a @racket[trace] macro that takes an expression and evaluates
 it, except that all function calls performed within the expression are traced
 with printouts. The macro's shape is
 
 @codeblock{
-;; (trace-apps Expr) : Expr
+;; (trace Expr) : Expr
 }
 
 The broad implementation strategy is to fully expand the expression argument and
@@ -462,17 +468,15 @@ the following subsections we explore three of them:
 
 ]
 
-
-
 @; ----------------------------------------
-@section[#:tag "monolithic"]{Monolithic Rewrite Function}
+@subsection[#:tag "monolithic"]{Monolithic Rewrite Function}
 
 One way of implementing the tracing instrumentation is as a @emph{monolithic}
 compile-time helper function. This approach is monolithic in the sense that the
-entire rewriting process is completed during the expansion of the
-@racket[trace-apps] macro. The skeleton of the rewriting helper function is
-based on the grammar of @shape{FullyExpandedExpr}; it is same as the skeleton of
-the analysis helper function from @secref["free-vars"].
+entire rewriting process is completed during the expansion of the @racket[trace]
+macro. The skeleton of the rewriting helper function is based on the grammar of
+@shape{FullyExpandedExpr}; it is same as the skeleton of the analysis helper
+function from @secref["free-vars"].
 
 @examples[#:eval the-eval #:no-result #:escape UNQUOTE
 (begin-for-syntax
@@ -650,7 +654,7 @@ repaired. Here is a sketch of @racket[trace-transform] with both fixes:
 
 
 @; ----------------------------------------
-@section[#:tag "monolithic+metafun"]{Monolithic Rewriter with Metafunctions}
+@subsection[#:tag "monolithic+metafun"]{Monolithic Rewriter with Metafunctions}
 
 The definition of @racket[trace-transform] is a bit clunky due to the mismatch
 between ellipses in syntax patterns and explicit @racket[map] (encapsulated in
@@ -720,7 +724,7 @@ takes an extra non-syntax @racket[env] argument:
 @racketblock[
       [(kw:#%plain-lambda formals body-expr ...+)
        (define env* (extend-env-with-formals env #'formals))
-       (define-syntax-metafunction LT
+       (define-template-metafunction LT
          (syntax-parser
            [(_ e) (loop #'e env*)]))
        (repair #'(kw formals (LT body-expr) ...))]
@@ -728,44 +732,104 @@ takes an extra non-syntax @racket[env] argument:
 
 Modify @racket[trace-transform] so that references and updates (@racket[set!])
 to variables are also traced, but only if the variable is bound within the
-expression given to @racket[trace-app] (which no longer just traces
-applications, so maybe it should be renamed to @racket[trace]). Use an immutable
-bound-identifier table (@racketmodname[syntax/id-table]) or set
-(@racketmodname[syntax/id-set]) to keep track of the set of variables to trace.}
+expression given to @racket[trace]. Use an immutable bound-identifier table
+(@racketmodname[syntax/id-table]) or set (@racketmodname[syntax/id-set]) to keep
+track of the set of variables to trace.}
 
 
 @; ----------------------------------------
-@section[#:tag "trampoline"]{Trampoline-Style Rewrite Macro}
+@subsection[#:tag "trampoline"]{Trampoline-Style Rewrite Macro}
 
+The monolithic solutions both perform the rewriting of the expanded expression
+all at once, within a single macro step. The second solution used syntax
+template metafunctions, which have the appearance of function or macro calls
+around the subexpressions but in fact get applied when the syntax template is
+evaluated. But why not use a macro instead of a metafunction? That leads us to
+another implementation strategy: a recursive macro.
 
+This implementation is an example of @deftech{trampoline style}. The expander
+calls the rewrite macro's transformer function, but instead of completing the
+entire rewrite in a single macro step, the macro only does a fixed amount of
+work (typically, processes one level of the expanded expression), leaves
+instructions to continue the process in the form of recursive macro calls, and
+then returns to the expander. The expander continues traversing the term, and
+when it hits one of the recursive macro calls, it transfers control back to the
+macro to resume the rewriting. Control keeps bouncing from the expander to the
+macro and then falling back from the macro to the expander until the rewriting
+is complete.
 
+The idea of the trampoline is fundamental to macro programming. Every macro is
+implemented in trampoline style, if trampoline style is interpreted broadly
+enough. A macro does not complete the compilation of a term itself; it is not
+capable, because the macro API does not provide access to the necessary
+support. Instead, it merely transforms the term into a simpler term using Racket
+core forms, other macros, and recursive calls to itself as helpers. Then control
+returns to the expander, which completes the transformation and then calls the
+compiler on the fully-expanded program.
 
+Tangent: Historically, ``trampoline'' referred to a technique for implementing
+proper tail calls for Scheme on platforms that don't natively support tail calls
+(for example, compiling to C or the JVM). To implement a tail call, instead of
+performing a @emph{call}, the current function performs a @emph{return} (setting
+a flag or returning a special indicator value), and the @emph{trampoline}
+detects that case and performs the call on its behalf. Since the call is made
+from the trampoline, the previous function's stack frame is cleared and the
+stack does not grow. More generally, I use the term ``trampoline'' to refer to
+any situation where a bit of code is unable or unwilling to perform an action
+directly, so it returns a request to a more capable layer --- the trampoline ---
+which performs the action on its behalf. In Scheme compiled to C, a function is
+unable to perform a function call without growing the stack. In Javascript, a
+computation cannot run for a long period without risking interruption, so it
+uses the @tt{setTimeout} trampoline with a resumption callback. In Haskell, the
+pure language cannot directly perform IO and other side effects, so it returns
+an IO request value to the Haskell-OS bridge, which interprets the reqeust,
+performs the operation, and resumes evaluation of the pure continuation.
 
-@; no good solution to non-syntax-valued params...
+Here is a sketch of the trampoline-style solution. Note that the
+@racket[trace-transform] helper macro takes a @shape{FullyExpandedExpr}
+argument.
 
+@RACKETBLOCK[
+(code:comment "(trace Expr) : Expr")
+(define-syntax trace
+  (syntax-parser
+    [(_ e:expr)
+     #`(trace-transform #,(local-expand #'e 'expression null))]))
 
-@; ============================================================
+(code:comment "(trace-transform FullyExpandedExpr) : Expr")
+(define-syntax trace-transform
+  (syntax-parser
+    #:literal-sets (kernel-literals)
+    [(_ ee:expr)
+     (code:comment "repair : Syntax -> Syntax")
+     (code:comment "PRE: The outer layer of the argument was produced by a syntax template here.")
+     (define (repair stx) (datum->syntax ee (syntax-e stx) ee ee))
+     (syntax-parse #'ee
+       #:literal-sets (kernel-literals)
+       (code:comment "Transform")
+       [(_ (kw:#%plain-app expr_ ...+))
+        (repair #'(kw trace-app (trace-transform expr) ...))]
+       (code:comment "Recur")
+       [(kw:#%plain-lambda formals body-expr ...+)
+        (repair #'(kw formals (trace-transform body-expr) ...))]
+       [(kw:case-lambda (formals body-expr ...+) ...)
+        (repair #'(kw (formals (trace-transform body-expr) ...) ...))]
+       ELIDED
+       (code:comment "Base, includes variable, quote, quote-syntax, etc")
+       (code:comment "Note: don't call repair!")
+       [e #'e])]))
+]
 
-@;{ FIXME: trace function calls with printf
-    limitation: calls within functions defined elsewhere are not traced }
+One advantage of the trampoline style over the monolithic style is that it
+breaks the rewriting process into multiple small steps, and each step is visible
+to debugging tools such as the Macro Stepper. A disadvantage is that there is no
+good way to pass additional non-syntax-valued parameters to the recursive calls
+(but there are a few bad ways to do it).
 
-@; FIXME: "global reinterpretation" => languages!
+@exercise[#:tag "reinterp-trampoline"]{Complete the implementation of
+@racket[trace] using the trampoline-style helper macro
+@racket[trace-transform].}
 
-
-
-@; ------------------------------------------------------------
-@section[#:tag "partial-expand"]{Partial Expansion}
-
-@;{
-Example: hash-from-definitions
-
-v1: every definition has key
-    - trampoline style
-exercise: add syntax parameter `this-hash`
-exercise: add #:base, #:import
-v2: only declared (key _) variables are entered into table
-    - collect loop, defctx!
-}
-
+@;{ Con: no good way to do threaded computation (eg, state, nonlocal analysis...) }
 
 @(close-eval the-eval)
