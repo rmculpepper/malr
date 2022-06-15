@@ -27,18 +27,25 @@
        [ee
         #'ee])]))
 
-;; (define-key-maybe x:Id Expr Expr[MutableHash] LCtx) : Body[{x}]
+;; (define-key-maybe x:Id Id Expr[MutableHash] LCtx) : Body[{x}]
 (define-syntax define-key-maybe
   (syntax-parser
     [(_ x:id tmp:id h:expr here)
      (cond [(bound-identifier=? #'x (datum->syntax #'here (syntax-e #'x)))
-            #'(begin (define-syntax x
-                       (make-variable-like-transformer
-                        (quote-syntax (hash-ref h (quote x)))
-                        (quote-syntax (lambda (v) (hash-set! h (quote x) v)))))
-                     (set! x tmp))]
+            #'(define-key x tmp h)]
            [else
             #'(define-syntax x (make-rename-transformer (quote-syntax tmp)))])]))
+
+;; (define-key x:Id Expr Expr[MutableHash]) : Body[{x}]
+(define-syntax define-key
+  (syntax-parser
+    [(_ x:id tmp:id h:expr)
+     #'(begin (define-syntax x
+                (make-variable-like-transformer
+                  (quote-syntax (hash-ref h (quote x)))
+                  (quote-syntax (lambda (v) (hash-set! h (quote x) v)))))
+              (set! x tmp))]))
+
 
 ;; ----------------------------------------
 

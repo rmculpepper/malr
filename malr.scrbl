@@ -54,6 +54,10 @@ Next sections:
 
 - updated, mini version of Advanced Macrology & Typed Scheme ?
 
+
+Chapter 13: Pitfalls and Gotchas
+- generate quote-syntax, not #' -- analogy to (printf unknown-string)
+
 Racket changes:
 - `body`, etc syntax classes
 - #:check / ~check, more flexible error reporting

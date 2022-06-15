@@ -8,8 +8,8 @@
           "styles.rkt"
           (for-label racket/base syntax/parse syntax/datum racket/match syntax/macro-testing
                      racket/string racket/struct-info syntax/transformer racket/syntax
-                     racket/promise
-                     racket/contract racket/list rackunit syntax/parse/experimental/template))
+                     racket/promise racket/contract racket/list
+                     rackunit syntax/parse/experimental/template))
 
 @(define the-eval (make-malr-eval))
 @(the-eval '(require racket/match racket/string racket/promise
@@ -18,11 +18,10 @@
 @; ============================================================
 @title[#:tag "reinterpret-body"]{Reinterpreting Body Terms}
 
-@; FIXME: "global reinterpretation" => languages!
+
 
 @; ------------------------------------------------------------
 @section[#:tag "partial-expand"]{Partial Expansion}
-
 
 Let's design a macro @racket[hash-from-definitions], which takes a list of body
 terms and produces a hash whose entries correspond to the variable definitions
@@ -86,13 +85,11 @@ partial expansion using @racket[local-expand], but they use it differently.
 
 @exercise[#:tag "reinterp2-distinguish"]{Create an example interaction that
 distinguishes the two possibile behaviors of @racket[hash-from-definitions]
-listed above. (A solution is shown in @secref["trampoline-body"].)}
+listed above. (One solution is shown in @secref["trampoline-body"].)}
 
 
 @; ------------------------------------------------------------
 @section[#:tag "trampoline-body"]{Processing Bodies with Trampoline-Style Macros}
-
-FIXME: @shape{LCtx} shape?
 
 
 
@@ -165,9 +162,48 @@ Problem:
 h2
 ]
 
-Solution:
+We cannot represent @emph{all} variables by their symbolic names in the hash,
+because the internal definition context may contain multiple variables with the
+same symbolic name differing only in their scope sets (that is, the
+representation of their lexical context). In the previous example, there were
+two variables named @racket[tmp], but they were distinct variables because they
+were introduced by different applications of the @racket[define/get] macro, so
+they had different macro-introduction scopes. We need some sort of filter on
+variables that prevents collisions: only selected variables will be represented
+via the hash, and other variables will be left as ordinary variables.
+
+@exercise[#:tag "reinterp2-original"]{Why would @racket[syntax-original?] be a
+bad basis for deciding whether to include a variable in the result hash?}
+
+
+@; ------------------------------------------------------------
+@subsection[#:tag "trampoline-lctx"]{The Lexical Context Shape}
+
+The @shape{LCtx} (lexical context) shape encompasses any term that is used
+solely to represent a lexical context. That is, it is ultimately used as the
+first argument to @racket[datum->syntax]. A common convention is to use an
+identifier with the name @racket[HERE] for a @shape{LCtx} term.
+
+Note that a @shape{LCtx} term does not represent a specific, fixed set of scopes
+in Racket's scope-set hygiene model. During the macro expansion of a program, a
+particular subterm will generally have environment scopes added to it as the
+expander discovers binding forms around it, and it will have macro-introduction
+scopes toggled as it is passed to macro transformers and returned in their
+results. That is, the scopes associated with a lexical context vary during
+expansion. The purpose of a @shape{LCtx} term is to track the changes in scopes
+undergone by a lexical context.
+
+As an example, we can use a @shape{LCtx} auxiliary argument to fix the problem
+with @racket[hash-from-definitions]. We'll amend the behavior to the following:
+only variables that have the same lexical context as the original
+@racket[hash-from-definitions] expression are represented using the hash.
+
+We amend @racket[hash-from-definitions] to create a @shape{LCtx} term
+representing its own lexical context and pass it to the @racket[convert-defs]
+helper:
 
 @examples[#:eval the-eval #:no-result
+(code:comment "(hash-from-definitions Body ...) : Expr")
 (define-syntax hash-from-definitions
   (syntax-parser
     [(_ e:expr ...)
@@ -175,34 +211,54 @@ Solution:
      #'(let ([h (make-hash)])
          (convert-defs e h HERE) ...
          (#%expression h))]))
+]
 
+The @racket[convert-defs] macro, likewise, passes the @shape{LCtx} argument
+(called @racket[lctx]) to the @racket[define-key-maybe], which uses it to decide
+whether to treat the given variable as a hash key or as an ordinary variable.
+
+@examples[#:eval the-eval #:no-result
+(code:comment "(convert-defs Body SimpleExpr[MutableHash] LCtx) : Body")
 (define-syntax convert-defs
   (syntax-parser
-    [(_ e:expr h here)
+    [(_ e:expr h lctx)
      (define ee (local-expand #'e (syntax-local-context) #f))
      (syntax-parse ee
        #:literal-sets (kernel-literals)
        [(define-values ~! (x:id ...) rhs:expr)
         #:with (tmp ...) (generate-temporaries #'(x ...))
         #'(begin (define-values (tmp ...) rhs)
-                 (define-key-maybe x tmp h here) ...)]
+                 (define-key-maybe x tmp h lctx) ...)]
        [(begin ~! e:expr ...)
-        #'(begin (convert-defs e h here) ...)]
+        #'(begin (convert-defs e h lctx) ...)]
        [ee
         #'ee])]))
+]
 
+Finally, @racket[define-key-maybe] determines how to bind a variable. If the
+variable has the same lexical context as the original
+@racket[hash-from-definitions] expression, the variable is represented in the
+hash and initialized to the temporary variable's value. Otherwise, it is defined
+as an alias (that is, an alternate name) for the temporary variable using
+@racket[make-rename-transformer]. To check whether the variable has the same
+lexical context as @racket[lctx], we check whether they currently have the same
+scope sets, and we do that by transferring the lexical context to the variable's
+symbol and checking whether the two identifiers are @racket[bound-identifier=?].
+
+@examples[#:eval the-eval #:no-result
+(code:comment "(define-key-maybe x:Id Id SimpleExpr[MutableHash] LCtx) : Body[{x}]")
 (define-syntax define-key-maybe
   (syntax-parser
-    [(_ x:id tmp:id h:expr here)
-     (cond [(bound-identifier=? #'x (datum->syntax #'here (syntax-e #'x)))
-            #'(begin (define-syntax x
-                       (make-variable-like-transformer
-                        (quote-syntax (hash-ref h (quote x)))
-                        (quote-syntax (lambda (v) (hash-set! h (quote x) v)))))
-                     (set! x tmp))]
+    [(_ x:id tmp:id h:expr lctx)
+     (cond [(bound-identifier=? #'x (datum->syntax #'lctx (syntax-e #'x)))
+            #'(define-key x tmp h)]
            [else
             #'(define-syntax x (make-rename-transformer (quote-syntax tmp)))])]))
 ]
+
+The @racket[define-key] helper is the same as before.
+
+The problematic example from the last section now works as we would like:
 
 @examples[#:eval the-eval #:label #f
 (define-syntax define/get
@@ -210,37 +266,43 @@ Solution:
     [(_ var:id rhs:expr)
      #'(begin (define tmp rhs)
               (define (var) tmp))]))
-(define h
+(define h2
   (hash-from-definitions
     (define/get x 1)
     (define/get y (+ (x) (x)))))
-(code:line ((hash-ref h 'x)) (code:comment "expect 1 (??!)"))
-(code:line ((hash-ref h 'y)) (code:comment "expect 2"))
-h
+(code:line ((hash-ref h2 'x)) (code:comment "expect 1"))
+(code:line ((hash-ref h2 'y)) (code:comment "expect 2"))
+h2
 ]
 
+@exercise[#:tag "reinterp2-infnames"]{When a @racket[lambda] expression occurs
+immediately as the right-hand side of a binding form (like
+@racket[define-values]) with a single variable name, that variable name is used
+as the procedure's name for printing. So when @racket[convert-defs] rewrites
+@racket[define-values] forms to use freshly generated temporary names, it
+affects the names of procedures. That is why the names of the procedures in the
+example above have numeric suffixes. Fix it, but be careful not to change the
+scope that the right-hand side expressions are evaluated in, and be careful not
+to break any multi-valued expressions that currently work.}
 
-
-
-@exercise[#:tag "reinterp2-base"]{Extend @racket[hash-from-definitions] to
-support an optional starting hash and import declaration. Here is an example:
+@exercise[#:tag "reinterp2-link"]{Extend @racket[hash-from-definitions] to
+support linkage clauses consisting of a hash expression and an import
+declaration. Here is an example:
 
 @racketblock[
 (define h0 (make-hash))
 (hash-set! h0 'x 1)
-(define h
+(define h1
   (hash-from-definitions
-    #:base h0 #:import (x)
+    #:link h0 #:import (x)
     (define y (+ x x))))
-(hash-ref h 'y) (code:comment "expect 2")
-(eq? h0 h)      (code:comment "expect #t")
+(hash-ref h1 'y) (code:comment "expect 2")
+(eq? h0 h1)      (code:comment "expect #f")
 ]
 
 @; Solution should include shape def!
 }
 
-@exercise[#:tag "reinterp2-original"]{Why would @racket[syntax-original?] be a
-bad basis for deciding whether to include a variable in the result hash?}
 
 @; ------------------------------------------------------------
 @section[#:tag "defctx-api"]{Processing Bodies with the Definition-Context API}
@@ -268,5 +330,6 @@ v2: only declared (key _) variables are entered into table
     - collect loop, defctx!
 }
 
+@; FIXME: "global reinterpretation" => languages!
 
 @(close-eval the-eval)
