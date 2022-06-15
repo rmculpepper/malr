@@ -156,13 +156,13 @@ Problem:
     [(_ var:id rhs:expr)
      #'(begin (define tmp rhs)
               (define (var) tmp))]))
-(define h
+(define h2
   (hash-from-definitions
     (define/get x 1)
     (define/get y (+ (x) (x)))))
-(code:line ((hash-ref h 'x)) (code:comment "expect 1 (??!)"))
-(code:line ((hash-ref h 'y)) (code:comment "expect 2"))
-h
+(code:line ((hash-ref h2 'x)) (code:comment "expect 1 (??!)"))
+(code:line ((hash-ref h2 'y)) (code:comment "expect 2"))
+h2
 ]
 
 Solution:
