@@ -95,6 +95,7 @@ listed above. (A solution is shown in @secref["trampoline-body"].)}
 FIXME: @shape{LCtx} shape?
 
 
+
 @examples[#:eval the-eval #:no-result #:escape UNQUOTE
 (code:comment "(hash-from-definitions Body ...) : Expr")
 (define-syntax hash-from-definitions
