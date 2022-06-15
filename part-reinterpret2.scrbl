@@ -91,7 +91,19 @@ listed above. (One solution is shown in @secref["trampoline-body"].)}
 @; ------------------------------------------------------------
 @section[#:tag "trampoline-body"]{Processing Bodies with Trampoline-Style Macros}
 
+One strategy to handling the body list is to let the Racket macro expander
+manage the two-pass expansion but use a trampoline-style macro to pre-process
+each body term during the first pass. Specifically, the trampoline-style macro
+partially expands its argument and rewrites a variable definition to use the
+hash instead by defining the name as an indirection macro instead. It returns
+the new macro definition (or the partially expanded body term, in the other
+cases), to the macro expander, which continues the first pass with the next
+wrapped body term or continues to the second pass (expression expansion).
 
+Here is the main @racket[hash-from-definitions] macro. It creates a mutable hash
+and binds it to an auxiliary variable, and it wraps each argument body term with
+the @racket[convert-defs] trampoline-style helper and puts it in a body term
+context (specifically, the body of a @racket[let] expression).
 
 @examples[#:eval the-eval #:no-result #:escape UNQUOTE
 (code:comment "(hash-from-definitions Body ...) : Expr")
@@ -103,6 +115,24 @@ listed above. (One solution is shown in @secref["trampoline-body"].)}
          h)]))
 ]
 
+The @racket[convert-defs] macro partially expands its body term argument. Since
+it cooperating with the macro expander's handling of an internal definition
+context (that is, body context), it passes @racket[(syntax-local-context)] as
+the context argument to @racket[local-expand]. It passes @racket[#f] as the stop
+list, which causes @racket[local-expand] to expand the root of the term until it
+is no longer a macro application but not to recursively expand the term's
+subexpressions. The result is a @shape{PartiallyExpandedBody}, which has the
+following shape:
+
+@codeblock{
+PartiallyExpandedBody ::= (CoreFormId . _)
+                        | NOT (Id . _)
+CoreFormId ::= begin | define-values | define-syntaxes | #%plain-lambda | ....
+}
+
+
+
+
 @examples[#:eval the-eval #:no-result #:escape UNQUOTE
 (code:comment "(convert-defs Body SimpleExpr[MutableHash]) : Body")
 (define-syntax convert-defs
@@ -111,12 +141,12 @@ listed above. (One solution is shown in @secref["trampoline-body"].)}
      (define ee (local-expand #'e (syntax-local-context) #f))
      (syntax-parse ee
        #:literal-sets (kernel-literals)
+       [(begin ~! e:expr ...)
+        #'(begin (convert-defs e h) ...)]
        [(define-values ~! (x:id ...) rhs:expr)
         (with-syntax ([(tmp ...) (generate-temporaries #'(x ...))])
           #'(begin (define-values (tmp ...) rhs)
                    (define-key x tmp h) ...))]
-       [(begin ~! e:expr ...)
-        #'(begin (convert-defs e h) ...)]
        [ee
         #'ee])]))
 
