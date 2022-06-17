@@ -121,34 +121,41 @@ context (that is, body context), it passes @racket[(syntax-local-context)] as
 the context argument to @racket[local-expand]. It passes @racket[#f] as the stop
 list, which causes @racket[local-expand] to expand the root of the term until it
 is no longer a macro application but not to recursively expand the term's
-subexpressions. The result is a @shape{PartiallyExpandedBody}, which has the
-following shape:
+subexpressions. The result is a @shape{PartiallyExpandedBody}.
 
-@codeblock{
-PartiallyExpandedBody ::= (CoreFormId . _)
-                        | NOT (Id . _)
-CoreFormId ::= begin | define-values | define-syntaxes | #%plain-lambda | ....
-}
+Unlike @shape{FullyExpandedExpr}, the @shape{PartiallyExpandedBody} shape does
+not have a tidy grammar. A @shape{PartiallyExpandedBody} is defined by the
+following property: if the term is a pair starting with an identifier, then the
+identifier is not bound to a macro. In particular, if it starts with a core form
+identifier, it is not necessarily a well-formed use of that core form, and the
+client is responsible for validating the term.
 
-
-
+Every macro that processes @shape{PartiallyExpandedBody} terms should handle
+@racket[begin]. In this case, @racket[convert-defs] recurs trampoline-style to
+the @racket[begin] form's subterms. Other than @racket[begin], the only core
+form that @racket[convert-defs] specifically cares about is
+@racket[define-values]. It handles variable definitions by creating auxiliary
+variables to receive the results of the right-hand and then using the
+@racket[define-key] helper macro to define the original ``variable'' names as
+macros that access and update the hash. Here are the definitions of
+@racket[convert-defs] and @racket[define-key]:
 
 @examples[#:eval the-eval #:no-result #:escape UNQUOTE
 (code:comment "(convert-defs Body SimpleExpr[MutableHash]) : Body")
 (define-syntax convert-defs
   (syntax-parser
-    [(_ e:expr h)
-     (define ee (local-expand #'e (syntax-local-context) #f))
-     (syntax-parse ee
+    [(_ b:expr h)
+     (define eb (local-expand #'b (syntax-local-context) #f))
+     (syntax-parse eb
        #:literal-sets (kernel-literals)
-       [(begin ~! e:expr ...)
-        #'(begin (convert-defs e h) ...)]
+       [(begin ~! b:expr ...)
+        #'(begin (convert-defs b h) ...)]
        [(define-values ~! (x:id ...) rhs:expr)
         (with-syntax ([(tmp ...) (generate-temporaries #'(x ...))])
           #'(begin (define-values (tmp ...) rhs)
                    (define-key x tmp h) ...))]
-       [ee
-        #'ee])]))
+       [eb
+        #'eb])]))
 
 (code:comment "(define-key x:Id Expr Expr[MutableHash]) : Body[{x}]")
 (define-syntax define-key
@@ -160,6 +167,8 @@ CoreFormId ::= begin | define-values | define-syntaxes | #%plain-lambda | ....
                   (quote-syntax (lambda (v) (hash-set! h (Quote x) v)))))
               (set! x tmp))]))
 ]
+
+FIXME: need syntax-track-origin?
 
 @examples[#:eval the-eval #:label #f
 (define h

@@ -58,9 +58,20 @@ Next sections:
 Chapter 13: Pitfalls and Gotchas
 - generate quote-syntax, not #' -- analogy to (printf unknown-string)
 
+Chapter 2:
+- "body list"
+  - "module body list", "local body list" / "internal body list"
+- "body list with final expression" is eh, instead use ???
+
 Racket changes:
 - `body`, etc syntax classes
 - #:check / ~check, more flexible error reporting
+- validate PartiallyExpandedBody, etc
+  - partial-local-expand/check : Syntax ExpandContext Stops DefCtx -> Syntax
+  - check-partially-expanded-syntax : Syntax ExpandContext -> Void
+- syntax-track-origin w/o macro name
+- generic pass1 support
+- metafunction in core?
 - lock syntax to given interpretation
 
 }
