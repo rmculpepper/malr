@@ -54,6 +54,7 @@ Next sections:
 
 - updated, mini version of Advanced Macrology & Typed Scheme ?
 
+- block**: like block, but if non-final expr returns non-void result, raise error
 
 Chapter 13: Pitfalls and Gotchas
 - generate quote-syntax, not #' -- analogy to (printf unknown-string)
